@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ContextMode, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 import { slugify } from "@/lib/utils";
 
 const categorySchema = z.object({
@@ -29,7 +29,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const parsed = categorySchema.parse(await request.json());
+    const parsed = await parseJson(request, categorySchema);
     const category = await prisma.category.create({
       data: {
         ...parsed,

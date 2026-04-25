@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Currency } from "@prisma/client";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { HttpError, jsonError, requireSession } from "@/lib/server/http";
 import { rateSummary, refreshExchangeRates, setManualRate } from "@/lib/server/rates";
 
 const manualRateSchema = z.object({
@@ -43,8 +43,15 @@ export async function POST(request: NextRequest) {
       await refreshExchangeRates();
       return NextResponse.json(await rateSummary());
     }
-    const parsed = manualRateSchema.parse(body);
-    await setManualRate(parsed);
+    const result = manualRateSchema.safeParse(body);
+    if (!result.success) {
+      throw new HttpError(
+        400,
+        "Invalid rate payload",
+        result.error.issues.map((issue) => ({ path: issue.path.map(String).join(".") || "(root)", message: issue.message })),
+      );
+    }
+    await setManualRate(result.data);
     return NextResponse.json(await rateSummary());
   } catch (error) {
     return jsonError(error);

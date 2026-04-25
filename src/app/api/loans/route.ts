@@ -3,21 +3,37 @@ import { z } from "zod";
 import { Currency, LoanKind } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 
-const schema = z.object({
-  kind: z.enum(LoanKind),
-  lenderName: z.string().min(1),
-  originalAmount: z.union([z.string(), z.number()]),
-  currency: z.enum(Currency),
-  interestRate: z.coerce.number().min(0).default(0),
-  monthlyPayment: z.union([z.string(), z.number()]),
-  startDate: z.coerce.date(),
-  expectedPayoffDate: z.coerce.date().optional().nullable(),
-  remainingBalance: z.union([z.string(), z.number()]),
-  entityId: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-});
+const positiveAmount = z
+  .union([z.string(), z.number()])
+  .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
+    message: "Must be greater than 0",
+  });
+
+const schema = z
+  .object({
+    kind: z.enum(LoanKind),
+    lenderName: z.string().min(1),
+    originalAmount: positiveAmount,
+    currency: z.enum(Currency),
+    interestRate: z.coerce.number().min(0).max(1, "Use a decimal rate (0.05 = 5%)").default(0),
+    monthlyPayment: positiveAmount,
+    startDate: z.coerce.date(),
+    expectedPayoffDate: z.coerce.date().optional().nullable(),
+    remainingBalance: positiveAmount,
+    entityId: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.expectedPayoffDate && value.expectedPayoffDate <= value.startDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["expectedPayoffDate"],
+        message: "Expected payoff date must be after start date",
+      });
+    }
+  });
 
 export async function GET() {
   try {
@@ -31,7 +47,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const parsed = schema.parse(await request.json());
+    const parsed = await parseJson(request, schema);
     return NextResponse.json(
       await prisma.loan.create({
         data: {

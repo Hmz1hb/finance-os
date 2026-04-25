@@ -1,17 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { addYears } from "date-fns";
 import { ContextMode, Currency, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 import { getMadRate } from "@/lib/server/rates";
 import { MOROCCO_PERSONAL_ENTITY_ID, UK_LTD_ENTITY_ID } from "@/lib/server/entities";
 
+const MAX_AMOUNT_CENTS = 1_000_000_000_000;
+const MIN_DATE = new Date("1970-01-01T00:00:00.000Z");
+
+const positiveAmount = z
+  .union([z.string(), z.number()])
+  .refine((value) => {
+    const numeric = Number(typeof value === "string" ? value.replace(/,/g, "") : value);
+    return Number.isFinite(numeric) && numeric > 0 && Math.round(numeric * 100) < MAX_AMOUNT_CENTS;
+  }, { message: "Amount must be > 0 and within reasonable bounds" });
+
 const transactionSchema = z.object({
-  date: z.coerce.date(),
+  date: z.coerce
+    .date()
+    .refine((value) => value >= MIN_DATE && value <= addYears(new Date(), 5), {
+      message: "Date must be between 1970 and 5 years from today",
+    }),
   kind: z.enum(TransactionType),
   context: z.enum(ContextMode),
-  amount: z.union([z.string(), z.number()]),
+  amount: positiveAmount,
   currency: z.enum(Currency),
   categoryId: z.string().optional().nullable(),
   subcategory: z.string().optional().nullable(),
@@ -55,7 +70,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const parsed = transactionSchema.parse(await request.json());
+    const parsed = await parseJson(request, transactionSchema);
     const amountCents = toCents(parsed.amount);
     const exchangeRateSnapshot = await getMadRate(parsed.currency);
     const entityId = parsed.entityId ?? (parsed.context === ContextMode.BUSINESS ? UK_LTD_ENTITY_ID : MOROCCO_PERSONAL_ENTITY_ID);

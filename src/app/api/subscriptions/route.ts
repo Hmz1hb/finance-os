@@ -4,18 +4,23 @@ import { ContextMode, Currency, RecurrenceFrequency } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { getMadRate } from "@/lib/server/rates";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 
 const schema = z.object({
   name: z.string().min(1),
   context: z.enum(ContextMode),
-  amount: z.union([z.string(), z.number()]),
+  amount: z
+    .union([z.string(), z.number()])
+    .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
+      message: "Amount must be greater than 0",
+    }),
   currency: z.enum(Currency),
   billingCycle: z.enum(RecurrenceFrequency),
   nextBillingDate: z.coerce.date(),
   autoRenew: z.coerce.boolean().default(true),
   category: z.string().min(1),
   cancelUrl: z.string().optional().nullable(),
+  entityId: z.string().optional().nullable(),
 });
 
 export async function GET() {
@@ -32,7 +37,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const parsed = schema.parse(await request.json());
+    const parsed = await parseJson(request, schema);
     const amountCents = toCents(parsed.amount);
     const rate = await getMadRate(parsed.currency);
     return NextResponse.json(
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
           exchangeRateSnapshot: rate,
           madEquivalentCents: Math.round(amountCents * rate),
           cancelUrl: parsed.cancelUrl ?? undefined,
+          entityId: parsed.entityId ?? undefined,
         },
       }),
     );
