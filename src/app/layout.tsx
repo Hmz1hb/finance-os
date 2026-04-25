@@ -65,6 +65,12 @@ export default function RootLayout({
       data-theme="dark"
     >
       <body className="min-h-full flex flex-col">
+        <a
+          href="#main-content"
+          className="absolute left-4 top-4 z-[100] -translate-y-32 rounded-md bg-blue-ledger px-3 py-2 text-sm font-semibold text-white focus:translate-y-0"
+        >
+          Skip to main content
+        </a>
         {children}
         <Toaster position="top-right" theme="dark" richColors closeButton />
       </body>

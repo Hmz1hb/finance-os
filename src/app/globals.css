@@ -10,7 +10,7 @@
   --muted: #9ca8ba;
   --blue-ledger: #4a90d9;
   --green-income: #27ae60;
-  --red-risk: #e74c3c;
+  --red-risk: #ff8b7a;
   --orange-deadline: #f39c12;
   --purple-plan: #8e44ad;
 }
@@ -76,4 +76,15 @@ textarea {
 
 .safe-top {
   padding-top: env(safe-area-inset-top);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

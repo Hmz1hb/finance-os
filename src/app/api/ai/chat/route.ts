@@ -1,19 +1,40 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/server/db";
 import { streamAdvisorResponse, type ChatMessage } from "@/lib/server/bedrock";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 
 const schema = z.object({
   conversationId: z.string().optional(),
-  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).min(1),
+  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(8000) })).min(1),
 });
+
+function isBedrockUnavailable(message: string) {
+  return (
+    message.includes("Model use case details have not been submitted") ||
+    message.includes("ModelStreamErrorException") ||
+    message.includes("AccessDeniedException") ||
+    message.includes("ValidationException: Could not access model")
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const parsed = schema.parse(await request.json());
-    const stream = await streamAdvisorResponse(parsed.messages as ChatMessage[]);
+    const parsed = await parseJson(request, schema);
+    let stream;
+    try {
+      stream = await streamAdvisorResponse(parsed.messages as ChatMessage[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (isBedrockUnavailable(message)) {
+        return NextResponse.json(
+          { error: "AI advisor is unavailable", code: "AI_UNAVAILABLE" },
+          { status: 503 },
+        );
+      }
+      throw error;
+    }
 
     await prisma.aIConversation.upsert({
       where: { id: parsed.conversationId ?? "new" },

@@ -10,6 +10,14 @@ import { MOROCCO_PERSONAL_ENTITY_ID, UK_LTD_ENTITY_ID } from "@/lib/server/entit
 
 const MAX_AMOUNT_CENTS = 1_000_000_000_000;
 const MIN_DATE = new Date("1970-01-01T00:00:00.000Z");
+const IDEMPOTENCY_TTL_MS = 60_000;
+const idempotencyCache = new Map<string, { transactionId: string; expiresAt: number }>();
+
+function reapIdempotency(now: number) {
+  for (const [key, value] of idempotencyCache) {
+    if (value.expiresAt < now) idempotencyCache.delete(key);
+  }
+}
 
 const positiveAmount = z
   .union([z.string(), z.number()])
@@ -70,6 +78,21 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
+
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim();
+    if (idempotencyKey) {
+      const now = Date.now();
+      reapIdempotency(now);
+      const cached = idempotencyCache.get(idempotencyKey);
+      if (cached) {
+        const transaction = await prisma.transaction.findFirst({
+          where: { id: cached.transactionId, deletedAt: null },
+          include: { category: true },
+        });
+        if (transaction) return NextResponse.json(transaction);
+      }
+    }
+
     const parsed = await parseJson(request, transactionSchema);
     const amountCents = toCents(parsed.amount);
     const exchangeRateSnapshot = await getMadRate(parsed.currency);
@@ -97,6 +120,14 @@ export async function POST(request: NextRequest) {
       },
       include: { category: true },
     });
+
+    if (idempotencyKey) {
+      idempotencyCache.set(idempotencyKey, {
+        transactionId: transaction.id,
+        expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+      });
+    }
+
     return NextResponse.json(transaction);
   } catch (error) {
     return jsonError(error);
