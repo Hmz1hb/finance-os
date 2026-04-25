@@ -51,18 +51,22 @@ and `docker compose up -d` is re-applied.
 
 AWS access from the EC2 host is granted by an **IAM instance role** — there are no AWS access keys anywhere in this repo or on the host filesystem.
 
-## CI/CD (GitHub Actions Secrets)
+## CI/CD (GitHub Actions)
 
-The current CI workflow (`.github/workflows/ci.yml`) needs **no secrets** — it lints, typechecks, tests, and builds against placeholder env vars.
+CI (`.github/workflows/ci.yml`) needs **no secrets** — it lints, typechecks, tests, and builds against placeholder env vars.
 
-If/when a deploy job is added, expected GitHub Actions Secrets will be:
+Deploy (`.github/workflows/deploy.yml`) uses **OIDC** to assume an AWS IAM role — no AWS access keys are stored on GitHub. It uploads the tarball to `s3://.../app-src/finance-os.tar.gz` and triggers `userdata.sh` rerun on EC2 via SSM Send-Command. It never sees runtime secrets.
 
-| Secret name | Purpose |
+GitHub repo **variables** (Settings → Secrets and variables → Actions → **Variables** tab) — these are not secrets, they are configuration:
+
+| Variable name | Purpose |
 | --- | --- |
-| `AWS_DEPLOY_ROLE_ARN` | IAM role assumed via OIDC to upload `app-src/finance-os.tar.gz` to S3 and send SSM commands to the host |
-| `AWS_REGION` | (or use a repository variable) |
+| `AWS_DEPLOY_ROLE_ARN` | The IAM role ARN created by `infra/setup-github-oidc.sh`. Useless without OIDC trust. |
+| `EC2_INSTANCE_ID` | The `i-...` id of the prod EC2 instance to redeploy |
 
-> **Never** add `AUTH_SECRET`, `ADMIN_PASSWORD`, `DATABASE_URL`, or any runtime secret to GitHub Actions. Those belong in SSM Parameter Store, where the runtime host reads them.
+GitHub repo **secrets**: **none**. The deploy role is OIDC-trusted and locked to this repo + `main` branch.
+
+> **Never** add `AUTH_SECRET`, `ADMIN_PASSWORD`, `ADMIN_USER`, `DATABASE_URL`, or any runtime secret to GitHub Actions. Those belong in SSM Parameter Store, where the runtime host reads them at boot.
 
 ## Pre-push checklist
 

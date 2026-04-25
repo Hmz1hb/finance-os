@@ -1,0 +1,95 @@
+name: Deploy
+
+# Runs only on push to main, only after CI is green.
+# Never sees runtime secrets — those live in AWS SSM Parameter Store.
+# AWS access via OIDC (no long-lived credentials stored on GitHub).
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Tarball → S3 → EC2 redeploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    env:
+      AWS_REGION: eu-central-1
+      S3_BUCKET: finance-os-receipts-810500878308-eucentral1
+      S3_KEY: app-src/finance-os.tar.gz
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+
+    steps:
+      - name: Checkout commit that triggered CI
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gh-actions-finance-os-deploy
+
+      - name: Build deploy tarball
+        run: |
+          set -euxo pipefail
+          # archive only what userdata.sh needs — never .git, .github, node_modules, .next, .env*
+          tar --exclude='.git' \
+              --exclude='.github' \
+              --exclude='node_modules' \
+              --exclude='.next' \
+              --exclude='.env*' \
+              --exclude='*.tsbuildinfo' \
+              -czf /tmp/finance-os.tar.gz .
+          ls -lh /tmp/finance-os.tar.gz
+
+      - name: Upload tarball to S3
+        run: |
+          aws s3 cp /tmp/finance-os.tar.gz \
+            "s3://${S3_BUCKET}/${S3_KEY}" \
+            --region "${AWS_REGION}" \
+            --metadata "git-sha=${{ github.event.workflow_run.head_sha }}"
+
+      - name: Trigger EC2 redeploy via SSM
+        run: |
+          set -euxo pipefail
+          CMD_ID=$(aws ssm send-command \
+            --region "${AWS_REGION}" \
+            --instance-ids "${EC2_INSTANCE_ID}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "finance-os deploy ${{ github.event.workflow_run.head_sha }}" \
+            --parameters 'commands=["bash /var/lib/cloud/instance/scripts/userdata.sh"]' \
+            --query 'Command.CommandId' \
+            --output text)
+          echo "SSM command id: $CMD_ID"
+
+          # poll up to 10 minutes for completion
+          for i in $(seq 1 60); do
+            STATUS=$(aws ssm get-command-invocation \
+              --region "${AWS_REGION}" \
+              --command-id "$CMD_ID" \
+              --instance-id "${EC2_INSTANCE_ID}" \
+              --query 'Status' --output text || echo Pending)
+            echo "[$i] status: $STATUS"
+            case "$STATUS" in
+              Success) exit 0 ;;
+              Failed|Cancelled|TimedOut) exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "SSM command did not complete in time"
+          exit 1
