@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +21,9 @@ export default async function BusinessPage() {
     <>
       <PageHeader title="Business command center" description="PROPD Ltd, WebSolution.ma, Fiverr, subscriptions, invoices, contractors, and tax exposure." badge="Business mode" />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Revenue" value={formatMoney(revenue)} tone="income" />
-        <MetricCard label="Expenses" value={formatMoney(costs)} tone="risk" />
-        <MetricCard label="Profit" value={formatMoney(revenue - costs)} />
+        <MetricCard label="Revenue" value={formatMad(revenue)} tone="income" />
+        <MetricCard label="Expenses" value={formatMad(costs)} tone="risk" />
+        <MetricCard label="Profit" value={formatMad(revenue - costs)} />
         <MetricCard label="Clients" value={`${clients.length}`} tone="plan" />
       </section>
       <section className="mt-4 grid gap-4 xl:grid-cols-2">
@@ -34,7 +34,7 @@ export default async function BusinessPage() {
               <div key={invoice.id} className="rounded-md bg-surface-inset p-3">
                 <div className="flex justify-between gap-3">
                   <p className="text-sm font-medium">{invoice.invoiceNumber} · {invoice.client?.name ?? invoice.source}</p>
-                  <p className="text-sm font-semibold">{formatMoney(invoice.madEquivalentCents)}</p>
+                  <p className="text-sm font-semibold">{formatMad(invoice.madEquivalentCents)}</p>
                 </div>
                 <p className="mt-1 text-xs text-muted-ledger">
                   {invoice.status} · {invoice.dueDate ? `${Math.max(0, differenceInCalendarDays(new Date(), invoice.dueDate))} days aged` : "No due date"}

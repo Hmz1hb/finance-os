@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad, formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ export default async function SubscriptionsPage() {
     <>
       <PageHeader title="Subscriptions manager" description="Personal and business recurring charges, burn rate, billing calendar, and cancellation tracking." badge="Recurring" />
       <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Monthly burn" value={formatMoney(monthlyBurn)} tone="deadline" />
-        <MetricCard label="Annualized cost" value={formatMoney(monthlyBurn * 12)} tone="risk" />
+        <MetricCard label="Monthly burn" value={formatMad(monthlyBurn)} tone="deadline" />
+        <MetricCard label="Annualized cost" value={formatMad(monthlyBurn * 12)} tone="risk" />
         <MetricCard label="Renewing this week" value={`${renewSoon.length}`} tone="plan" />
       </section>
       <Card className="mt-4">

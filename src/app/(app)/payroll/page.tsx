@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +22,8 @@ export default async function PayrollPage() {
     <>
       <PageHeader title="Owner pay" description="Payroll-like owner compensation from UK LTD to personal money with linked ledger entries and tax classification." badge="Owner compensation" />
       <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Owner pay YTD" value={formatMoney(ytd)} tone="income" />
-        <MetricCard label="Dividends tracked" value={formatMoney(dividends)} tone="plan" />
+        <MetricCard label="Owner pay YTD" value={formatMad(ytd)} tone="income" />
+        <MetricCard label="Dividends tracked" value={formatMad(dividends)} tone="plan" />
         <MetricCard label="Records" value={`${payments.length}`} />
       </section>
       <section className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -38,7 +38,7 @@ export default async function PayrollPage() {
               <div key={payment.id} className="rounded-md bg-surface-inset p-3">
                 <div className="flex justify-between gap-3">
                   <p className="text-sm font-medium">{payment.paymentType}</p>
-                  <p className="text-sm font-semibold">{formatMoney(payment.madEquivalentCents)}</p>
+                  <p className="text-sm font-semibold">{formatMad(payment.madEquivalentCents)}</p>
                 </div>
                 <p className="text-xs text-muted-ledger">{payment.fromEntity.name} to {payment.toEntity.name} · {payment.date.toISOString().slice(0, 10)}</p>
                 {payment.taxTreatment ? <p className="mt-2 text-xs text-muted-ledger">{payment.taxTreatment}</p> : null}

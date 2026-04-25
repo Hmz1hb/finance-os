@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function BusinessIncomePage() {
           {rows.map((row) => (
             <div key={row.id} className="flex justify-between gap-4 rounded-md bg-surface-inset p-3">
               <div><p className="text-sm font-medium">{row.description}</p><p className="text-xs text-muted-ledger">{row.source ?? row.category?.name ?? "Other"} · {row.invoice?.status ?? row.status}</p></div>
-              <p className="text-sm font-semibold text-green-income">{formatMoney(row.madEquivalentCents)}</p>
+              <p className="text-sm font-semibold text-green-income">{formatMad(row.madEquivalentCents)}</p>
             </div>
           ))}
           {rows.length === 0 ? <p className="text-sm text-muted-ledger">Add revenue from the Transactions page or import CSV history.</p> : null}

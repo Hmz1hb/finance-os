@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad, formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +19,10 @@ export default async function PersonalPage() {
     <>
       <PageHeader title="Personal finance" description="Household spending, subscriptions, vehicles, health, giving, debt, emergency fund, and life goals." badge="Personal mode" />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Income" value={formatMoney(personalIncome)} tone="income" />
-        <MetricCard label="Spending" value={formatMoney(personalExpenses)} tone="risk" />
-        <MetricCard label="Debt remaining" value={formatMoney(loans?._sum.remainingBalanceCents ?? 0)} tone="deadline" />
-        <MetricCard label="Savings capacity" value={formatMoney(personalIncome - personalExpenses)} />
+        <MetricCard label="Income" value={formatMad(personalIncome)} tone="income" />
+        <MetricCard label="Spending" value={formatMad(personalExpenses)} tone="risk" />
+        <MetricCard label="Debt remaining" value={formatMad(loans?._sum.remainingBalanceCents ?? 0)} tone="deadline" />
+        <MetricCard label="Savings capacity" value={formatMad(personalIncome - personalExpenses)} />
       </section>
       <Card className="mt-4">
         <CardHeader><CardTitle>Active goals</CardTitle></CardHeader>

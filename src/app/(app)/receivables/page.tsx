@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
 import { receivableStatus } from "@/lib/server/cashflows";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad, formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ export default async function ReceivablesPage() {
     <>
       <PageHeader title="Receivables" description="Client invoices, business receivables, and personal IOUs people need to pay you." badge="Owed to me" />
       <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Open receivables" value={formatMoney(openCents)} tone="income" />
+        <MetricCard label="Open receivables" value={formatMad(openCents)} tone="income" />
         <MetricCard label="Overdue" value={`${overdue.length}`} tone="risk" />
         <MetricCard label="Tracked items" value={`${receivables.length}`} tone="plan" />
       </section>

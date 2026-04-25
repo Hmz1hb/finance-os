@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export default async function PersonalIncomePage() {
   return (
     <>
       <PageHeader title="Personal income" description="Salary from business, side income, gifts, refunds, and other personal inflows." badge="Income" />
-      <Card><CardHeader><CardTitle>Income ledger</CardTitle></CardHeader><div className="space-y-2">{rows.map((row) => <div key={row.id} className="flex justify-between rounded-md bg-surface-inset p-3"><span className="text-sm">{row.description}</span><span className="text-sm font-semibold text-green-income">{formatMoney(row.madEquivalentCents)}</span></div>)}</div></Card>
+      <Card><CardHeader><CardTitle>Income ledger</CardTitle></CardHeader><div className="space-y-2">{rows.map((row) => <div key={row.id} className="flex justify-between rounded-md bg-surface-inset p-3"><span className="text-sm">{row.description}</span><span className="text-sm font-semibold text-green-income">{formatMad(row.madEquivalentCents)}</span></div>)}</div></Card>
     </>
   );
 }

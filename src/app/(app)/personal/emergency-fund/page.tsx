@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +21,9 @@ export default async function EmergencyFundPage() {
         <CardHeader><CardTitle>{((current / Math.max(1, monthlyAverage))).toFixed(1)} months covered</CardTitle></CardHeader>
         <Progress value={(current / Math.max(1, target)) * 100} />
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <p className="rounded-md bg-surface-inset p-3 text-sm">Current<br /><span className="font-semibold">{formatMoney(current)}</span></p>
-          <p className="rounded-md bg-surface-inset p-3 text-sm">Target<br /><span className="font-semibold">{formatMoney(target)}</span></p>
-          <p className="rounded-md bg-surface-inset p-3 text-sm">Monthly avg<br /><span className="font-semibold">{formatMoney(monthlyAverage)}</span></p>
+          <p className="rounded-md bg-surface-inset p-3 text-sm">Current<br /><span className="font-semibold">{formatMad(current)}</span></p>
+          <p className="rounded-md bg-surface-inset p-3 text-sm">Target<br /><span className="font-semibold">{formatMad(target)}</span></p>
+          <p className="rounded-md bg-surface-inset p-3 text-sm">Monthly avg<br /><span className="font-semibold">{formatMad(monthlyAverage)}</span></p>
         </div>
       </Card>
     </>

@@ -3,7 +3,7 @@ import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { dashboardSummary } from "@/lib/server/analytics";
 import { calculateFinancialHealthScore } from "@/lib/server/health";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ export default async function ReportsPage() {
     <>
       <PageHeader title="Reports & analytics" description="Monthly, quarterly, yearly reports, P&L, spending analysis, category trends, exports, and health score." badge="Analytics" />
       <section className="grid gap-3 sm:grid-cols-4">
-        <MetricCard label="Income" value={formatMoney(summary?.incomeCents ?? 0)} tone="income" />
-        <MetricCard label="Expenses" value={formatMoney(summary?.expenseCents ?? 0)} tone="risk" />
+        <MetricCard label="Income" value={formatMad(summary?.incomeCents ?? 0)} tone="income" />
+        <MetricCard label="Expenses" value={formatMad(summary?.expenseCents ?? 0)} tone="risk" />
         <MetricCard label="Savings rate" value={`${summary?.savingsRate ?? 0}%`} />
         <MetricCard label="Health score" value={`${health?.score ?? 0}/100`} tone="plan" />
       </section>

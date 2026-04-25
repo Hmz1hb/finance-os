@@ -3,7 +3,7 @@ import { MetricCard } from "@/components/app/metric-card";
 import { LoanForm } from "@/components/app/loan-form";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad, formatMoney } from "@/lib/finance/money";
 import { listEntities } from "@/lib/server/entities";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +19,8 @@ export default async function LoansPage() {
     <>
       <PageHeader title="Loans & debt" description="Money owed by you, credit cards, BNPL, business loans, and money owed to you." badge="Debt" />
       <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Total debt" value={formatMoney(totalDebt)} tone="risk" />
-        <MetricCard label="Monthly obligation" value={formatMoney(monthly)} tone="deadline" />
+        <MetricCard label="Total debt" value={formatMad(totalDebt)} tone="risk" />
+        <MetricCard label="Monthly obligation" value={formatMad(monthly)} tone="deadline" />
         <MetricCard label="Owed to me" value="Receivables" tone="income" />
       </section>
       <section className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">

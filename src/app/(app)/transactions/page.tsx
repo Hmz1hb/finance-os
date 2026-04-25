@@ -3,7 +3,7 @@ import { ReceiptUpload } from "@/components/app/receipt-upload";
 import { TransactionForm } from "@/components/app/transaction-form";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 import { listEntities } from "@/lib/server/entities";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ export default async function TransactionsPage() {
                   </p>
                 </div>
                 <p className={transaction.kind === "INCOME" ? "text-sm font-semibold text-green-income" : "text-sm font-semibold text-red-risk"}>
-                  {formatMoney(transaction.madEquivalentCents)}
+                  {formatMad(transaction.madEquivalentCents)}
                 </p>
               </div>
             ))}

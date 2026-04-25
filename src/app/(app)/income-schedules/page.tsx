@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad, formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function IncomeSchedulesPage() {
               <div key={item.id} className="rounded-md bg-surface-inset p-3">
                 <div className="flex justify-between gap-3">
                   <p className="text-sm font-medium">{item.description}</p>
-                  <p className="text-sm font-semibold text-green-income">{formatMoney(item.madEquivalentCents)}</p>
+                  <p className="text-sm font-semibold text-green-income">{formatMad(item.madEquivalentCents)}</p>
                 </div>
                 <p className="text-xs text-muted-ledger">{item.entity.name} · due {item.dueDate.toISOString().slice(0, 10)} · {item.counterparty ?? "No counterparty"}</p>
               </div>

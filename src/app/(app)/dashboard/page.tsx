@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { cockpitSummary } from "@/lib/server/cockpit";
 import { entityIdFromSearch, entityLabel } from "@/lib/server/entities";
-import { formatMoney } from "@/lib/finance/money";
+import { formatMad, formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +32,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         badge={activeEntity ? activeEntity.baseCurrency : "Combined"}
       />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Cash now" value={formatMoney(summary.cashCents)} icon={<Wallet className="h-5 w-5" />} />
-        <MetricCard label="Expected 30d" value={formatMoney(summary.expectedIncomeCents)} tone="income" icon={<BanknoteArrowUp className="h-5 w-5" />} />
-        <MetricCard label="Receivables open" value={formatMoney(summary.receivableOpenCents)} tone="plan" icon={<PanelTop className="h-5 w-5" />} />
-        <MetricCard label="Tax reserve" value={formatMoney(summary.taxReserveCents)} tone="deadline" icon={<Landmark className="h-5 w-5" />} />
+        <MetricCard label="Cash now" value={formatMad(summary.cashCents)} icon={<Wallet className="h-5 w-5" />} />
+        <MetricCard label="Expected 30d" value={formatMad(summary.expectedIncomeCents)} tone="income" icon={<BanknoteArrowUp className="h-5 w-5" />} />
+        <MetricCard label="Receivables open" value={formatMad(summary.receivableOpenCents)} tone="plan" icon={<PanelTop className="h-5 w-5" />} />
+        <MetricCard label="Tax reserve" value={formatMad(summary.taxReserveCents)} tone="deadline" icon={<Landmark className="h-5 w-5" />} />
         <MetricCard label="Overdue owed" value={`${summary.overdueReceivableCount}`} tone="risk" icon={<ArrowDownRight className="h-5 w-5" />} />
       </section>
 
@@ -52,7 +52,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <p className="text-sm font-medium">{item.description}</p>
                   <p className="text-xs text-muted-ledger">{item.entity.name} · due {item.dueDate.toISOString().slice(0, 10)} · {item.counterparty ?? "No counterparty"}</p>
                 </div>
-                <p className="text-sm font-semibold text-green-income">{formatMoney(item.madEquivalentCents)}</p>
+                <p className="text-sm font-semibold text-green-income">{formatMad(item.madEquivalentCents)}</p>
               </div>
             ))}
             {summary.receivables.slice(0, 5).map((item) => (
@@ -61,7 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <p className="text-sm font-medium">{item.title}</p>
                   <p className="text-xs text-muted-ledger">{item.entity.name} · {item.counterparty} · {item.status}</p>
                 </div>
-                <p className="text-sm font-semibold">{formatMoney(Math.max(0, item.madEquivalentCents - item.paidAmountCents))}</p>
+                <p className="text-sm font-semibold">{formatMad(Math.max(0, item.madEquivalentCents - item.paidAmountCents))}</p>
               </div>
             ))}
             {summary.expectedIncome.length === 0 && summary.receivables.length === 0 ? <p className="text-sm text-muted-ledger">No expected cash or receivables yet.</p> : null}
@@ -105,7 +105,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <div key={item.id} className="rounded-md bg-surface-inset p-3">
                 <div className="flex justify-between gap-3">
                   <p className="text-sm font-medium">{item.paymentType}</p>
-                  <p className="text-sm font-semibold">{formatMoney(item.madEquivalentCents)}</p>
+                  <p className="text-sm font-semibold">{formatMad(item.madEquivalentCents)}</p>
                 </div>
                 <p className="text-xs text-muted-ledger">{item.fromEntity.name} to {item.toEntity.name} · {item.date.toISOString().slice(0, 10)}</p>
               </div>
@@ -123,7 +123,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <p className="text-xs text-muted-ledger">{transaction.entity?.name ?? transaction.context} · {transaction.category?.name ?? "Uncategorized"}</p>
                 </div>
                 <p className={transaction.kind === "INCOME" ? "text-sm font-semibold text-green-income" : "text-sm font-semibold text-red-risk"}>
-                  {formatMoney(transaction.madEquivalentCents)}
+                  {formatMad(transaction.madEquivalentCents)}
                 </p>
               </div>
             ))}
