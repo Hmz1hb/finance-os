@@ -92,6 +92,12 @@ npm test
 npm run build
 ```
 
+The same checks run automatically in [GitHub Actions](.github/workflows/ci.yml) on every push and PR to `main`.
+
+## Secrets
+
+This repo contains no real secrets. See [`SECRETS.md`](./SECRETS.md) for where they actually live (local `.env`, AWS SSM Parameter Store, GitHub Actions Secrets) and how to rotate them.
+
 ## License
 
 Personal project — all rights reserved by Hamza Lachehab El Hilali.
