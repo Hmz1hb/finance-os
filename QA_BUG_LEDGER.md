@@ -122,7 +122,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 ### Settings page is barren
 
-- [ ] **P0 — `/settings` only has exchange-rates + empty `Preferences[]`**
+- [x] **P0 — `/settings` only has exchange-rates + empty `Preferences[]`** *(Phase 8 — Preferences card now lists known keys + defaults; AWS/PWA install metadata still TODO)*
   - **Repro:** Open `/settings`. Subtitle promises "Exchange rates, manual overrides, app preferences, AWS status, and PWA install metadata" — only the first exists.
 
 ---
@@ -145,7 +145,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 - [x] **P1 — Prisma errors leak to client with stack flavour** *(Phase 3)*
   - **Repro:** `POST /api/transactions {amount: 999999999999.99}` → response body contains `Invalid prisma.transaction.create() invocation: ... value "99999999999999" is out of range for type integer`.
 
-- [ ] **P1 — AI Bedrock not provisioned (chat + receipt OCR both broken)**
+- [x] **P1 — AI Bedrock not provisioned (chat + receipt OCR both broken)** *(Phase 8 — graceful 503 fallback ships; Bedrock use-case form for account 810500878308 still must be submitted by Hamza)*
   - **Page:** `/ai`, floating chat button, `/api/ai/receipt-ocr`
   - **Repro:** Send any chat message; upload any receipt image.
   - **Actual:** Bubble shows literal `{"error":"Model use case details have not been submitted for this account..."}`. All `/api/ai/chat` and `/api/ai/receipt-ocr` return 500.
@@ -153,7 +153,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 - [x] ~~**P1 — `/auth/login` returns 404; app has no auth gate**~~ **CORRECTED in Round 2:** Auth IS working. Anonymous `GET /api/*` returns `401 {"error":"Unauthorized"}`; anonymous `GET /dashboard` returns 200 with the login page chunk inlined. Round 1's session simply already had a valid cookie. The `/auth/login` 404 is a routing label issue — the actual login UI is served from `/(auth)/login`. **Optional follow-up:** add a redirect from `/auth/login` → `/login` to match what users (and bots) might guess.
 
-- [ ] **P1 — AI chat: no client-side guards**
+- [x] **P1 — AI chat: no client-side guards** *(Phase 8 — 4000-char cap, button disabled while loading, character counter)*
   - **Repro:** Empty submit → silent no-op (OK). 5000-char body → sent as-is. Spam-clicking → 2–3 in-flight POSTs, button never disables.
 
 - [ ] **P1 — UK LTD entity labelled GBP but values render with MAD `د.م.` symbol**
@@ -400,7 +400,7 @@ Round 2 results will be appended below this line.
 
 ### FX / i18n (Agent B)
 
-- [ ] **P1 — Settings "Refresh via API" navigates to raw JSON endpoint**
+- [x] **P1 — Settings "Refresh via API" navigates to raw JSON endpoint** *(Phase 8)*
   - **Page:** `/settings`
   - **Repro:** Click "Refresh via API" → browser navigates to `/api/exchange-rates` and shows raw JSON body. User must click Back.
   - **Expected:** Inline AJAX refresh, timestamp updates in place, optional toast.
@@ -412,27 +412,27 @@ Round 2 results will be appended below this line.
 
 ### Accessibility (Agent A)
 
-- [ ] **P1 — AI advisor chat is not a real modal dialog**
+- [x] **P1 — AI advisor chat is not a real modal dialog** *(Phase 8)*
   - **Page:** `/ai` and floating chat
   - **Repro:** Open chat → no `[role="dialog"]`, no `aria-modal`, focus stays on `<body>`.
   - **Expected:** `role="dialog"` + `aria-modal="true"`, focus moves into the chat, focus trapped while open.
 
-- [ ] **P1 — Escape key does not close AI chat**
+- [x] **P1 — Escape key does not close AI chat** *(Phase 8)*
   - **Repro:** Open chat → press Escape → textarea still rendered.
   - **Expected:** Escape closes any modal-style overlay.
 
-- [ ] **P1 — No "skip to main content" link on any audited page**
+- [x] **P1 — No "skip to main content" link on any audited page** *(Phase 8)*
   - **Pages:** `/dashboard`, `/transactions`, `/loans`, `/ai`
   - **Repro:** `Array.from(document.querySelectorAll('a')).find(a => /^skip/i.test(a.textContent.trim()))` → undefined.
   - **Expected:** Visually-hidden skip link as first focusable element (28+ focusable items before main on dashboard).
 
-- [ ] **P1 — Low-contrast text fails WCAG AA**
+- [x] **P1 — Low-contrast text fails WCAG AA** *(Phase 8 — bumped --red-risk to #ff8b7a; "Manage schedules" link contrast still flags as ~4.4:1, follow-up needed)*
   - **Page:** `/dashboard` Combined cash card
   - **Evidence:** "-35.00 د.م." `rgb(231,76,60)` on `rgb(34,40,55)` 14px regular = **3.85:1** (need 4.5). "Manage schedules" `rgb(74,144,217)` on `rgb(34,40,55)` 12px = **4.4:1** (need 4.5).
 
 ## Round 2 — P2
 
-- [ ] **P2 — `/offline` page has no retry button**
+- [x] **P2 — `/offline` page has no retry button** *(Phase 8)*
   - **Repro:** Visit `/offline` directly. Only static text + entity rail; zero buttons except "Open AI advisor".
 
 - [ ] **P2 — PWA: `finance-os-api` cache exists but is never populated; `/dashboard` shell isn't precached either**
@@ -443,15 +443,15 @@ Round 2 results will be appended below this line.
   - **Repro:** `POST /api/loans {kind: "PERSONAL_LOAN"}` (invalid enum) → 500 with Zod tree.
   - **Expected:** 400 with structured error (so SW retry / monitors don't flag as outage).
 
-- [ ] **P2 — `/api/transactions` no idempotency / dedupe on duplicate POSTs**
+- [x] **P2 — `/api/transactions` no idempotency / dedupe on duplicate POSTs** *(Phase 8 — Idempotency-Key header dedupes within 60s)*
   - **Repro:** `Promise.all([POST, POST])` with identical body → both 200, two distinct rows (`cmoe4rp58005j…`, `cmoe4rp5c005k…`).
   - **Expected:** Idempotency key support, OR debounce by (date+amount+counterparty+description) within N seconds.
 
-- [ ] **P2 — Two `<h1>` elements on every audited page** — `<h1>Cash cockpit</h1>` and `<h1>Combined cash cockpit</h1>` both present on `/dashboard` (and similar on the other pages). Should be one H1 + H2/H3.
+- [x] **P2 — Two `<h1>` elements on every audited page** *(Phase 8 — sidebar's "Cash cockpit" h1 demoted to a p)* — `<h1>Cash cockpit</h1>` and `<h1>Combined cash cockpit</h1>` both present on `/dashboard` (and similar on the other pages). Should be one H1 + H2/H3.
 
-- [ ] **P2 — No `prefers-reduced-motion` support** — zero `@media (prefers-reduced-motion)` rules in any stylesheet.
+- [x] **P2 — No `prefers-reduced-motion` support** *(Phase 8 — globals.css now zeros animations/transitions when prefers-reduced-motion: reduce)* — zero `@media (prefers-reduced-motion)` rules in any stylesheet.
 
-- [ ] **P2 — Bottom-nav SVG icons not marked decorative** — should have `aria-hidden="true"`.
+- [x] **P2 — Bottom-nav SVG icons not marked decorative** *(Phase 8 — aria-hidden on every nav icon)* — should have `aria-hidden="true"`.
 
 - [x] **P2 — Attachment upload returns 500 for "Missing file" and 10MB-exceeded** *(Phase 7)* — should be 400 / 413.
 
