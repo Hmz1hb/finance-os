@@ -213,12 +213,12 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 These `[TEST-AGENT-*]` records were created during the audit and **cannot be deleted via the UI/API**:
 
-- [ ] Delete `[TEST-AGENT-1]` transactions (~5 rows incl. one −50 MAD, one 2099-12-31, one 0-amount CSV)
-- [ ] Delete `[TEST-AGENT-2] QA Schedule` from income schedules + recurring rules
-- [ ] Delete 4 `[TEST-AGENT-3]` loans (Visa CC, Car Loan, Mortgage, Bad Validation)
-- [ ] Delete `[TEST-AGENT-3] D7 Visa Fund` goal
-- [ ] Delete `[TEST-AGENT-3] Netflix` subscription
-- [ ] Delete 2 zero-value net-worth snapshots dated 2026-04-25
+- [x] Delete `[TEST-AGENT-1]` transactions (~5 rows incl. one −50 MAD, one 2099-12-31, one 0-amount CSV) *(Phase 9 — bundled with R2 transactions: 138 total soft-deleted)*
+- [x] Delete `[TEST-AGENT-2] QA Schedule` from income schedules + recurring rules *(Phase 9 — 1 RecurringRule soft-deleted, 1 ExpectedIncome CANCELLED)*
+- [x] Delete 4 `[TEST-AGENT-3]` loans (Visa CC, Car Loan, Mortgage, Bad Validation) *(Phase 9 — 5 loans soft-deleted including R2)*
+- [x] Delete `[TEST-AGENT-3] D7 Visa Fund` goal *(Phase 9 — 3 goals soft-deleted)*
+- [x] Delete `[TEST-AGENT-3] Netflix` subscription *(Phase 9 — 2 subscriptions soft-deleted)*
+- [x] Delete 2 zero-value net-worth snapshots dated 2026-04-25 *(Phase 9 — hard-deleted via DELETE; NetWorthSnapshot has no deletedAt column)*
 
 Suggested SQL once the entities have soft-delete fields:
 ```sql
@@ -478,10 +478,10 @@ Round 2 results will be appended below this line.
 
 ## Round 2 — additional cleanup (also no DELETE endpoint exists)
 
-- [ ] Delete `[TEST-AGENT-B-R2]` transactions (2 rows: GBP FX accuracy, Arabic bidi test)
-- [ ] Delete `[TEST-AGENT-C-R2]` records: 1 receivable + 5 payments (overpaid `cmoe4mwj2000y…`), 3 pay-myself records (6 paired transactions), 2 duplicate settle transactions
-- [ ] Delete `[TEST-AGENT-D-R2]` records: 75 perf-test transactions + 2 dupe-test transactions
-- [ ] Delete `[TEST-AGENT-E-R2-…]` records: ~57 transactions (1 XSS, 1 SQL-text, 1 CSRF probe, 4 misc validation, 50 from rate-limit flood), 2 goals (1 XSS, 1 negative-amount), 1 subscription, 1 loan, 1 receivable, 2 attachments
+- [x] Delete `[TEST-AGENT-B-R2]` transactions (2 rows: GBP FX accuracy, Arabic bidi test) *(Phase 9)*
+- [x] Delete `[TEST-AGENT-C-R2]` records: 1 receivable + 5 payments (overpaid `cmoe4mwj2000y…`), 3 pay-myself records (6 paired transactions), 2 duplicate settle transactions *(Phase 9)*
+- [x] Delete `[TEST-AGENT-D-R2]` records: 75 perf-test transactions + 2 dupe-test transactions *(Phase 9)*
+- [x] Delete `[TEST-AGENT-E-R2-…]` records: ~57 transactions (1 XSS, 1 SQL-text, 1 CSRF probe, 4 misc validation, 50 from rate-limit flood), 2 goals (1 XSS, 1 negative-amount), 1 subscription, 1 loan, 1 receivable, 2 attachments *(Phase 9 — DB rows soft-deleted; both S3 attachment objects (.html + .exe) removed via aws s3 rm)*
 
 Also delete the 2 attachment files from S3:
 ```bash
