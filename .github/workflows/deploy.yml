@@ -67,18 +67,61 @@ jobs:
       - name: Trigger EC2 redeploy via SSM
         run: |
           set -euxo pipefail
+
+          # Inline redeploy script — runs as root via SSM Send-Command on the EC2.
+          # Re-creates the recurring steps from the original userdata.sh: fetch
+          # tarball from S3, refresh /opt/finance-os/.env from SSM Parameter
+          # Store, rebuild and restart docker compose. One-time bootstrap
+          # (installing docker, cron, etc.) is NOT repeated — the host is
+          # already provisioned.
+          read -r -d '' REDEPLOY_SCRIPT <<'EOSCRIPT' || true
+          set -euxo pipefail
+          REGION=eu-central-1
+          APP_DIR=/opt/finance-os
+          BUCKET=finance-os-receipts-810500878308-eucentral1
+          SRC_KEY=app-src/finance-os.tar.gz
+
+          mkdir -p "$APP_DIR"
+          aws s3 cp "s3://${BUCKET}/${SRC_KEY}" /tmp/finance-os.tar.gz --region "$REGION"
+          tar -xzf /tmp/finance-os.tar.gz -C "$APP_DIR"
+          rm -f /tmp/finance-os.tar.gz
+
+          ENV_FILE="${APP_DIR}/.env"
+          : > "$ENV_FILE"
+          chmod 600 "$ENV_FILE"
+          aws ssm get-parameters-by-path \
+            --region "$REGION" \
+            --path /finance-os/prod/ \
+            --with-decryption \
+            --query 'Parameters[].[Name,Value]' \
+            --output text \
+          | while IFS=$'\t' read -r name value; do
+              key="${name##*/}"
+              # docker compose env_file treats `$$` as a literal `$`; escape so
+              # bcrypt hashes ($2b$12$...) reach the container intact.
+              escaped="${value//\$/\$\$}"
+              printf '%s=%s\n' "$key" "$escaped" >> "$ENV_FILE"
+            done
+
+          cd "$APP_DIR"
+          docker compose --env-file "$ENV_FILE" up -d --build
+          EOSCRIPT
+
+          # Build the parameters JSON via jq to avoid shell-quote hell.
+          jq -nc --arg cmd "$REDEPLOY_SCRIPT" '{commands: [$cmd]}' > /tmp/ssm-params.json
+
           CMD_ID=$(aws ssm send-command \
             --region "${AWS_REGION}" \
             --instance-ids "${EC2_INSTANCE_ID}" \
             --document-name "AWS-RunShellScript" \
             --comment "finance-os deploy ${{ github.event.workflow_run.head_sha }}" \
-            --parameters 'commands=["bash /var/lib/cloud/instance/scripts/userdata.sh"]' \
+            --parameters file:///tmp/ssm-params.json \
             --query 'Command.CommandId' \
             --output text)
           echo "SSM command id: $CMD_ID"
 
-          # poll up to 10 minutes for completion
-          for i in $(seq 1 60); do
+          # poll up to 15 minutes for completion (build + restart can be slow)
+          for i in $(seq 1 90); do
             STATUS=$(aws ssm get-command-invocation \
               --region "${AWS_REGION}" \
               --command-id "$CMD_ID" \
@@ -86,10 +129,31 @@ jobs:
               --query 'Status' --output text || echo Pending)
             echo "[$i] status: $STATUS"
             case "$STATUS" in
-              Success) exit 0 ;;
-              Failed|Cancelled|TimedOut) exit 1 ;;
+              Success)
+                echo "::group::Host stdout (tail)"
+                aws ssm get-command-invocation \
+                  --region "${AWS_REGION}" --command-id "$CMD_ID" \
+                  --instance-id "${EC2_INSTANCE_ID}" \
+                  --query 'StandardOutputContent' --output text | tail -50
+                echo "::endgroup::"
+                exit 0 ;;
+              Failed|Cancelled|TimedOut)
+                echo "::error::SSM command finished with status $STATUS"
+                echo "::group::Host stdout"
+                aws ssm get-command-invocation \
+                  --region "${AWS_REGION}" --command-id "$CMD_ID" \
+                  --instance-id "${EC2_INSTANCE_ID}" \
+                  --query 'StandardOutputContent' --output text | tail -100
+                echo "::endgroup::"
+                echo "::group::Host stderr"
+                aws ssm get-command-invocation \
+                  --region "${AWS_REGION}" --command-id "$CMD_ID" \
+                  --instance-id "${EC2_INSTANCE_ID}" \
+                  --query 'StandardErrorContent' --output text | tail -100
+                echo "::endgroup::"
+                exit 1 ;;
             esac
             sleep 10
           done
-          echo "SSM command did not complete in time"
+          echo "::error::SSM command did not complete in 15 minutes"
           exit 1
