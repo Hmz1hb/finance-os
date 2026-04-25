@@ -90,7 +90,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 ### Validation / business logic
 
-- [ ] **P0 — Loans: server-side validation absent**
+- [x] **P0 — Loans: server-side validation absent** *(Phase 3)*
   - **Page:** `/loans`, `POST /api/loans`
   - **Repro:** `POST {originalAmount: -500, remainingBalance: -100, interestRate: 1000, expectedPayoffDate: "2020-01-01"}` → 200, persisted.
   - **Expected:** 400 with field errors.
@@ -102,21 +102,21 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 ### Data accuracy / cross-page consistency
 
-- [ ] **P0 — Net Worth ignores loans entirely**
+- [x] **P0 — Net Worth ignores loans entirely** *(Phase 5)*
   - **Page:** `/net-worth`
   - **Repro:** Add a loan. `/loans` shows total debt. `/net-worth` Liabilities = 0.00.
   - **Expected:** Liabilities aggregate must include all active loans.
 
-- [ ] **P0 — Dashboard "Expected 30d" is 2× the EntityRail "Expected"**
+- [x] **P0 — Dashboard "Expected 30d" is 2× the EntityRail "Expected"** *(Phase 5)*
   - **Page:** `/dashboard`
   - **Repro:** Cockpit shows `Expected 30d = 46,324.12 د.م.`, EntityRail shows `Expected 23,162.06 د.م.` Same data, two different aggregations.
   - **Expected:** One source of truth.
 
-- [ ] **P0 — `/personal` "Debt remaining" is 7× the `/loans` "Total debt"**
+- [x] **P0 — `/personal` "Debt remaining" is 7× the `/loans` "Total debt"** *(Phase 5)*
   - **Page:** `/personal` vs `/loans`
   - **Repro:** Personal shows 21,000 د.م., Loans shows 3,000 د.م.
 
-- [ ] **P0 — Dashboard "Cash now" tile ignores expenses**
+- [x] **P0 — Dashboard "Cash now" tile ignores expenses** *(Phase 5)*
   - **Page:** `/dashboard`
   - **Repro:** EntityRail shows Combined = −42.50 د.م.; same-render Cockpit shows Cash now = 0.00 د.م.
 
@@ -134,15 +134,15 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
   - **Repro:** Quick-double-click "Save transaction" → 2 identical rows.
   - **Expected:** Disable on submit, clear form on success.
 
-- [ ] **P1 — Transactions API has no validation** (negatives, far-future dates, garbage)
+- [x] **P1 — Transactions API has no validation** *(Phase 3)*
   - **Repro:** `POST {kind:"EXPENSE", amount:-50, date:"2099-12-31"}` → 200 persisted; affects "Cash now" math.
 
-- [ ] **P1 — CSV import accepts pure garbage**
+- [x] **P1 — CSV import accepts pure garbage** *(Phase 3)*
   - **Page:** `/api/import/csv`
   - **Repro:** Import body `"this is not csv\nat all just nonsense"` → `{imported: 1}` (creates a 0-amount "Imported transaction" row).
   - **Expected:** Reject non-CSV with 400.
 
-- [ ] **P1 — Prisma errors leak to client with stack flavour**
+- [x] **P1 — Prisma errors leak to client with stack flavour** *(Phase 3)*
   - **Repro:** `POST /api/transactions {amount: 999999999999.99}` → response body contains `Invalid prisma.transaction.create() invocation: ... value "99999999999999" is out of range for type integer`.
 
 - [ ] **P1 — AI Bedrock not provisioned (chat + receipt OCR both broken)**
@@ -164,13 +164,13 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
   - **Page:** `/subscriptions`
   - **Repro:** Create subscription with 15.99 GBP → row displays as `£200.01` (the converted MAD value with the source currency's symbol).
 
-- [ ] **P1 — Subscription `entityId` silently dropped**
+- [x] **P1 — Subscription `entityId` silently dropped** *(Phase 3)*
   - **Repro:** `POST /api/subscriptions {entityId: "morocco_personal", ...}` → response shows `entityId: null`.
 
 - [ ] **P1 — Loans UI does not refresh after create**
   - **Repro:** Toast says "Loan added" but list and totals stay stale until manual reload.
 
-- [ ] **P1 — Income-schedule schema requires irrelevant fields for INTERVAL_DAYS mode**
+- [x] **P1 — Income-schedule schema requires irrelevant fields for INTERVAL_DAYS mode** *(Phase 3 — server schema; client form in Phase 4)*
   - **Repro:** Pick INTERVAL_DAYS, submit. Schema rejects until `dayOfMonth`, `secondDayOfMonth`, `endDate` are filled — even though they don't apply.
 
 - [ ] **P1 — Negative owner-pay rejected silently with no UI feedback**
@@ -184,12 +184,12 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 ## P2 — Polish
 
-- [ ] **P2 — Wrong HTTP status codes on validation errors**
+- [x] **P2 — Wrong HTTP status codes on validation errors** *(Phases 1+3+7 — receipt-ocr graceful fallback in Phase 8)*
   - `/api/ai/receipt-ocr` returns 500 for client errors (should be 400/413).
   - `/api/subscriptions` returns 500 for bad enum (should be 400).
   - `/api/exchange-rates` POST with empty body returns 500 with raw Zod tree (should be 400 with sanitized message).
 
-- [ ] **P2 — Subscription Zod schema uses `z.date()` instead of `z.coerce.date()`**
+- [x] **P2 — Subscription Zod schema uses `z.date()` instead of `z.coerce.date()`** *(already used coerce.date in current code; confirmed during Phase 3 audit — likely fixed in an earlier commit)*
   - **Repro:** `POST /api/subscriptions {nextBillingDate: "2026-05-15"}` initially fails with `received: "Invalid Date"`.
 
 - [ ] **P2 — `/personal/emergency-fund` auto-target meaningless on tiny windows**
@@ -292,13 +292,13 @@ Round 2 results will be appended below this line.
 
 ### Security (Agent E)
 
-- [ ] **P0 — CSRF: API accepts `Content-Type: text/plain`, no Origin/Referer check, no CSRF token**
+- [x] **P0 — CSRF: API accepts `Content-Type: text/plain`, no Origin/Referer check, no CSRF token** *(Phase 7)*
   - **Page:** every `/api/*` write endpoint
   - **Repro:** From any origin: `fetch('/api/transactions',{method:'POST',credentials:'include',headers:{'Content-Type':'text/plain'},body: JSON.stringify({...})})` → 200, record persisted (id `cmoe4qs1p005i1nmrrwlebfoz`).
   - **Expected:** Reject non-`application/json` content-type for write methods, OR require `SameSite=Strict` session cookie + a CSRF header check.
   - **Actual:** Any web page can issue cross-origin "simple" POSTs that ride the user's session cookie.
 
-- [ ] **P0 — Attachments accept arbitrary file types and store them in S3 unfiltered**
+- [x] **P0 — Attachments accept arbitrary file types and store them in S3 unfiltered** *(Phase 7)*
   - **Page:** `POST /api/attachments/upload`
   - **Repro:** Upload `.exe` → 200 (id `cmoe4ptdi005f1nmrftcth5a7`); upload `.html` containing a script → 200 (id `cmoe4ptas005e1nmrfz87lhos`).
   - **Expected:** Allowlist content-types (PDF, JPEG, PNG, WEBP, HEIC); re-derive content-type server-side from magic bytes; serve downloads with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`.
@@ -312,7 +312,7 @@ Round 2 results will be appended below this line.
 
 ### Previously-blocked flows (Agent C)
 
-- [ ] **P0 — Receivable payments accept overpayment, zero, and negative amounts**
+- [x] **P0 — Receivable payments accept overpayment, zero, and negative amounts** *(Phase 3)*
   - **Page:** `POST /api/receivables/[id]/payments`
   - **Repro:** On a 1,000 GBP receivable, post amounts 9999, 0, -100 → all 200. `paidAmountCents` ends 1,049,900 vs `amountCents` 100,000 (10× overpaid). Status flips to PAID after first overpayment.
   - **Expected:** 4xx with field error; clamp at outstanding balance.
@@ -322,7 +322,7 @@ Round 2 results will be appended below this line.
   - **Repro:** Settle the same expected-income twice → two separate INCOME transactions created (`cmoe4oyus003m…`, `cmoe4oyxn003n…`) and parent `recurringRule.nextDueDate` advances twice.
   - **Expected:** Second call → 409 / no-op when status already SETTLED.
 
-- [ ] **P0 — `pay-myself` accepts negative amounts**
+- [x] **P0 — `pay-myself` accepts negative amounts** *(Phase 3)*
   - **Page:** `POST /api/payroll/pay-myself`
   - **Repro:** `{amount:-500, currency:"GBP", paymentType:"salary"}` → 200, persisted twin transactions with `amountCents:-50000`. Net result: business "earns" 500 GBP back from a negative payroll.
   - **Expected:** 4xx.
@@ -339,7 +339,7 @@ Round 2 results will be appended below this line.
   - **Expected:** A way to record payments that decreases `remainingBalanceCents` and accrues interest.
   - **Actual:** Loan balance is permanently frozen; snowball math runs on the wrong number forever.
 
-- [ ] **P0 — `/api/recurring/generate` queries the wrong table**
+- [x] **P0 — `/api/recurring/generate` queries the wrong table** *(Phase 5)*
   - **Page:** `POST /api/recurring/generate`
   - **Repro:** `src/lib/server/recurring.ts:23` queries `prisma.recurringTemplate`, but the income-schedule UI writes to `prisma.recurringRule`. Generator returns `{created: []}` even with overdue schedules.
   - **Expected:** Generator should iterate `recurringRule` rows (which is what users actually create).
@@ -357,25 +357,25 @@ Round 2 results will be appended below this line.
 
 ### Security (Agent E)
 
-- [ ] **P1 — No rate limiting on any endpoint**
+- [x] **P1 — No rate limiting on any endpoint** *(Phase 7 — in-memory token bucket, 60 writes/minute per session/IP)*
   - **Repro:** 50 parallel `POST /api/transactions` → 50× 200 in 813ms. 50 parallel `POST /api/ai/chat` → 50× 500 in 357ms (server-side Bedrock hits, no upstream throttle).
   - **Expected:** Per-IP and per-session limits in middleware.
 
-- [ ] **P1 — Missing every meaningful security header on both HTML and API responses**
+- [x] **P1 — Missing every meaningful security header on both HTML and API responses** *(Phase 7)*
   - **Missing:** `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options` / `frame-ancestors`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`. `x-powered-by: Next.js` IS present (small leak).
   - **Expected:** At minimum HSTS, CSP, `frame-ancestors 'none'`, `nosniff`.
 
-- [ ] **P1 — `?entity=` is silently coerced to a default — no validation, no error**
+- [x] **P1 — `?entity=` is silently coerced to a default — no validation, no error** *(Phase 7 — dashboard now renders an "Unknown entity" empty state)*
   - **Page:** `/dashboard`
   - **Repro:** `?entity=does_not_exist`, `?entity=../something`, `?entity='; DROP TABLE entities; --` all return identical 200 with default-entity HTML. No 400, no error, no log.
   - **Expected:** Reject unknown entity IDs with 400 or render a clear "unknown entity" empty state.
 
-- [ ] **P1 — Zod issue tree leaks + 500 status on validation errors for more endpoints**
+- [x] **P1 — Zod issue tree leaks + 500 status on validation errors for more endpoints** *(Phases 1 + 3)*
   - **Endpoints:** `/api/exchange-rates`, `/api/recurring-rules`, `/api/goals`, `/api/subscriptions`, `/api/transactions`, `/api/loans`, `/api/payroll/pay-myself`.
   - **Expected:** 400 with sanitized message.
   - **Actual:** 500 with raw Zod issue tree in body. Pollutes error budgets and confuses any SW retry / monitoring layer.
 
-- [ ] **P1 — `/api/goals` accepts negative `targetAmount`**
+- [x] **P1 — `/api/goals` accepts negative `targetAmount`** *(Phase 3)*
   - **Repro:** `POST /api/goals {targetAmount: -100, ...}` → 200 with `targetAmountCents: -10000` persisted (id `cmoe4pl8500531nmrxbzyxeyu`).
   - **Expected:** 400 with field error.
 
@@ -385,11 +385,11 @@ Round 2 results will be appended below this line.
   - **Repro:** Bogus ID → 500 with body `Invalid \`prisma.expectedIncome.findUniqueOrThrow()\`...`.
   - **Expected:** 404 with safe message.
 
-- [ ] **P1 — `pay-myself` raw Prisma error on amount overflow**
+- [x] **P1 — `pay-myself` raw Prisma error on amount overflow** *(Phase 3 — capped at 1,000,000)*
   - **Repro:** `{amount: 999999999}` → 500 with `Value out of range for the type: value "99999999900" is out of range for type integer`.
   - **Expected:** Validate to a sane max in Zod first.
 
-- [ ] **P1 — `pay-myself` transactions have `entityId: null` — orphaned from any entity**
+- [x] **P1 — `pay-myself` transactions have `entityId: null` — orphaned from any entity** *(Phase 3)*
   - **Page:** `POST /api/payroll/pay-myself`
   - **Repro:** Both legs of every pay-myself record have `entityId: null`. They aggregate against COMBINED only and don't bind to UK LTD or Morocco Personal — breaks per-entity P&L.
   - **Code:** `src/app/api/payroll/pay-myself/route.ts:9` Zod schema has no `entityId` field.
@@ -405,7 +405,7 @@ Round 2 results will be appended below this line.
   - **Repro:** Click "Refresh via API" → browser navigates to `/api/exchange-rates` and shows raw JSON body. User must click Back.
   - **Expected:** Inline AJAX refresh, timestamp updates in place, optional toast.
 
-- [ ] **P1 — Cockpit "Expected 30d" inconsistent with EntityRail "Expected"**
+- [x] **P1 — Cockpit "Expected 30d" inconsistent with EntityRail "Expected"** *(Phase 5)*
   - **Code:** `src/lib/server/cockpit.ts:9,23,53,64`
   - **Repro:** EntityRail filters `dueDate: { gte: now, lte: soon }` (line 23); cockpit only filters `lte: soon` with no `gte` (line 64) — so cockpit Expected includes past-due forecasts that the rail excludes. Both use `addDays(now, 30)` on millisecond-`Date`, so the cutoff drifts by call time.
   - **Expected:** One shared window helper; documented "30 days from start-of-today UTC" or similar.
@@ -439,7 +439,7 @@ Round 2 results will be appended below this line.
   - **Repro:** `caches.match('/dashboard')` → undefined. Only `/`, `/offline`, and static assets are cached.
   - **Expected:** Precache the dashboard shell so the PWA opens offline.
 
-- [ ] **P2 — `/api/loans` validation failures return HTTP 500 instead of 400**
+- [x] **P2 — `/api/loans` validation failures return HTTP 500 instead of 400** *(Phase 3)*
   - **Repro:** `POST /api/loans {kind: "PERSONAL_LOAN"}` (invalid enum) → 500 with Zod tree.
   - **Expected:** 400 with structured error (so SW retry / monitors don't flag as outage).
 
@@ -453,14 +453,14 @@ Round 2 results will be appended below this line.
 
 - [ ] **P2 — Bottom-nav SVG icons not marked decorative** — should have `aria-hidden="true"`.
 
-- [ ] **P2 — Attachment upload returns 500 for "Missing file" and 10MB-exceeded** — should be 400 / 413.
+- [x] **P2 — Attachment upload returns 500 for "Missing file" and 10MB-exceeded** *(Phase 7)* — should be 400 / 413.
 
 - [ ] **P2 — No RTL support and no Intl number formatting for MAD**
   - **Repro:** `document.documentElement.dir` is none; `htmlLang="en"`.
   - **Expected:** For MAD, optionally `Intl.NumberFormat('fr-MA' | 'ar-MA', {style:'currency', currency:'MAD'})` → `1.234.567,89 د.م.` (period thousands, comma decimal).
   - **Actual:** Hand-rolled US format `1,234,567.89 د.م.` everywhere.
 
-- [ ] **P2 — `health-score` POST returns stale `id`/`createdAt` on same-day re-runs** — `breakdown`/`score` recomputed via `upsert` but response body shows yesterday's ID. Cosmetic but misleading. Also: `incomeDiversification` is **hardcoded to 60** in `src/lib/server/health.ts:29`.
+- [x] **P2 — `health-score` POST returns stale `id`/`createdAt` on same-day re-runs** *(Phase 5: incomeDiversification real calc; stale id/createdAt is a cosmetic upsert behaviour kept as-is)* — `breakdown`/`score` recomputed via `upsert` but response body shows yesterday's ID. Cosmetic but misleading. Also: `incomeDiversification` is **hardcoded to 60** in `src/lib/server/health.ts:29`.
 
 ## Round 2 — P3 (informational)
 
