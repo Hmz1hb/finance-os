@@ -52,6 +52,46 @@ const goals = [
 ] as const;
 
 async function main() {
+  await prisma.financialEntity.upsert({
+    where: { id: "uk_ltd" },
+    create: {
+      id: "uk_ltd",
+      slug: "uk-ltd",
+      name: "UK LTD",
+      type: "UK_LTD",
+      baseCurrency: Currency.GBP,
+      country: "GB",
+      taxResidence: "UK",
+      sortOrder: 1,
+      settings: { vatRegistered: false, vatThresholdCents: 9000000, reportingDefault: "UK_TAX_YEAR" },
+    },
+    update: {
+      name: "UK LTD",
+      baseCurrency: Currency.GBP,
+      settings: { vatRegistered: false, vatThresholdCents: 9000000, reportingDefault: "UK_TAX_YEAR" },
+    },
+  });
+
+  await prisma.financialEntity.upsert({
+    where: { id: "morocco_personal" },
+    create: {
+      id: "morocco_personal",
+      slug: "morocco-personal",
+      name: "Morocco Personal",
+      type: "MOROCCO_PERSONAL",
+      baseCurrency: Currency.MAD,
+      country: "MA",
+      taxResidence: "MOROCCO",
+      sortOrder: 2,
+      settings: { includesAutoEntrepreneur: true },
+    },
+    update: {
+      name: "Morocco Personal",
+      baseCurrency: Currency.MAD,
+      settings: { includesAutoEntrepreneur: true },
+    },
+  });
+
   for (const [name, slug, type, context, color, icon] of categories) {
     await prisma.category.upsert({
       where: { slug },
@@ -87,6 +127,70 @@ async function main() {
       },
     },
     update: {},
+  });
+
+  await prisma.taxProfile.upsert({
+    where: { id: "uk_ltd_ct_2026" },
+    create: {
+      id: "uk_ltd_ct_2026",
+      entityId: "uk_ltd",
+      type: "UK_LTD_CORPORATION_TAX",
+      name: "UK LTD corporation tax estimate",
+      effectiveFrom: new Date("2026-04-06T00:00:00.000Z"),
+      rules: {
+        smallProfitsRate: 0.19,
+        mainRate: 0.25,
+        lowerLimitCents: 5000000,
+        upperLimitCents: 25000000,
+        marginalReliefFraction: "3/200",
+        vatThresholdCents: 9000000,
+        vatRegistered: false,
+      },
+    },
+    update: {
+      rules: {
+        smallProfitsRate: 0.19,
+        mainRate: 0.25,
+        lowerLimitCents: 5000000,
+        upperLimitCents: 25000000,
+        marginalReliefFraction: "3/200",
+        vatThresholdCents: 9000000,
+        vatRegistered: false,
+      },
+    },
+  });
+
+  await prisma.taxProfile.upsert({
+    where: { id: "ma_ae_2026" },
+    create: {
+      id: "ma_ae_2026",
+      entityId: "morocco_personal",
+      type: "MOROCCO_AUTO_ENTREPRENEUR",
+      name: "Morocco auto-entrepreneur estimate",
+      effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+      rules: {
+        commerceRate: 0.005,
+        serviceRate: 0.01,
+        commerceCeilingCents: 50000000,
+        serviceCeilingCents: 20000000,
+        singleClientThresholdCents: 8000000,
+        singleClientExcessRate: 0.3,
+        vatExempt: true,
+        declarationCadence: "QUARTERLY",
+      },
+    },
+    update: {
+      rules: {
+        commerceRate: 0.005,
+        serviceRate: 0.01,
+        commerceCeilingCents: 50000000,
+        serviceCeilingCents: 20000000,
+        singleClientThresholdCents: 8000000,
+        singleClientExcessRate: 0.3,
+        vatExempt: true,
+        declarationCadence: "QUARTERLY",
+      },
+    },
   });
 
   await prisma.payrollPerson.upsert({

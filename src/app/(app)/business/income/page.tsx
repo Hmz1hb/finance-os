@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BusinessIncomePage() {
   const rows = await prisma.transaction.findMany({
-    where: { context: "BUSINESS", kind: "INCOME", deletedAt: null },
+    where: { entityId: "uk_ltd", kind: "INCOME", deletedAt: null },
     include: { client: true, invoice: true, category: true },
     orderBy: { date: "desc" },
     take: 100,

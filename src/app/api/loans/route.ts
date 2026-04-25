@@ -15,6 +15,7 @@ const schema = z.object({
   startDate: z.coerce.date(),
   expectedPayoffDate: z.coerce.date().optional().nullable(),
   remainingBalance: z.union([z.string(), z.number()]),
+  entityId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
           startDate: parsed.startDate,
           expectedPayoffDate: parsed.expectedPayoffDate ?? undefined,
           remainingBalanceCents: toCents(parsed.remainingBalance),
+          entityId: parsed.entityId ?? undefined,
           notes: parsed.notes ?? undefined,
         },
       }),

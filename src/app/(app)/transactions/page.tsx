@@ -4,13 +4,15 @@ import { TransactionForm } from "@/components/app/transaction-form";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { formatMoney } from "@/lib/finance/money";
+import { listEntities } from "@/lib/server/entities";
 
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
-  const [categories, transactions] = await Promise.all([
+  const [categories, transactions, entities] = await Promise.all([
     prisma.category.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }).catch(() => []),
-    prisma.transaction.findMany({ where: { deletedAt: null }, include: { category: true, attachments: true }, orderBy: { date: "desc" }, take: 80 }).catch(() => []),
+    prisma.transaction.findMany({ where: { deletedAt: null }, include: { category: true, attachments: true, entity: true }, orderBy: { date: "desc" }, take: 80 }).catch(() => []),
+    listEntities().catch(() => []),
   ]);
 
   return (
@@ -22,7 +24,7 @@ export default async function TransactionsPage() {
             <CardHeader>
               <CardTitle>Quick add</CardTitle>
             </CardHeader>
-            <TransactionForm categories={categories} />
+            <TransactionForm categories={categories} entities={entities} />
           </Card>
           <Card>
             <CardHeader>
@@ -41,7 +43,7 @@ export default async function TransactionsPage() {
                 <div>
                   <p className="text-sm font-medium">{transaction.description}</p>
                   <p className="text-xs text-muted-ledger">
-                    {transaction.date.toISOString().slice(0, 10)} · {transaction.context} · {transaction.category?.name ?? "Uncategorized"}
+                    {transaction.date.toISOString().slice(0, 10)} · {transaction.entity?.name ?? transaction.context} · {transaction.category?.name ?? "Uncategorized"}
                   </p>
                 </div>
                 <p className={transaction.kind === "INCOME" ? "text-sm font-semibold text-green-income" : "text-sm font-semibold text-red-risk"}>

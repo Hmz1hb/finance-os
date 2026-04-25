@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function EmergencyFundPage() {
   const [config, expenses] = await Promise.all([
     prisma.emergencyFundConfig.findFirst().catch(() => null),
-    prisma.transaction.aggregate({ where: { context: "PERSONAL", kind: "EXPENSE", deletedAt: null }, _sum: { madEquivalentCents: true }, _count: true }).catch(() => null),
+    prisma.transaction.aggregate({ where: { entityId: "morocco_personal", kind: "EXPENSE", deletedAt: null }, _sum: { madEquivalentCents: true }, _count: true }).catch(() => null),
   ]);
   const monthlyAverage = Math.round((expenses?._sum.madEquivalentCents ?? 0) / Math.max(1, new Date().getUTCMonth() + 1));
   const target = monthlyAverage * (config?.targetMonths ?? 6);

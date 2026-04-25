@@ -2,11 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Category } from "@prisma/client";
+import type { Category, FinancialEntity } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 
-export function TransactionForm({ categories }: { categories: Category[] }) {
+export function TransactionForm({ categories, entities }: { categories: Category[]; entities: FinancialEntity[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -20,6 +20,7 @@ export function TransactionForm({ categories }: { categories: Category[] }) {
       date: form.get("date"),
       kind: form.get("kind"),
       context: form.get("context"),
+      entityId: form.get("entityId"),
       amount: form.get("amount"),
       currency: form.get("currency"),
       categoryId: form.get("categoryId") || undefined,
@@ -57,6 +58,13 @@ export function TransactionForm({ categories }: { categories: Category[] }) {
         <option value="PERSONAL">Personal</option>
         <option value="BUSINESS">Business</option>
         <option value="BOTH">Shared</option>
+      </Select>
+      <Select name="entityId" defaultValue={entities.find((entity) => entity.id === "morocco_personal")?.id ?? entities[0]?.id}>
+        {entities.map((entity) => (
+          <option key={entity.id} value={entity.id}>
+            {entity.name}
+          </option>
+        ))}
       </Select>
       <div className="grid grid-cols-[1fr_96px] gap-2">
         <Input name="amount" inputMode="decimal" placeholder="Amount" required />

@@ -11,6 +11,7 @@ import {
   Landmark,
   Layers3,
   ListChecks,
+  PanelTop,
   PiggyBank,
   Receipt,
   Repeat,
@@ -19,26 +20,65 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: Gauge },
-  { href: "/transactions", label: "Transactions", icon: Receipt },
-  { href: "/business", label: "Business", icon: BriefcaseBusiness },
-  { href: "/business/income", label: "Revenue", icon: BarChart3 },
-  { href: "/business/expenses", label: "Business Costs", icon: CreditCard },
-  { href: "/payroll", label: "Payroll", icon: Landmark },
-  { href: "/personal", label: "Personal", icon: Home },
-  { href: "/personal/expenses", label: "Spending", icon: Wallet },
-  { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
-  { href: "/loans", label: "Debt", icon: ListChecks },
-  { href: "/personal/emergency-fund", label: "Runway", icon: PiggyBank },
-  { href: "/goals", label: "Goals", icon: Flag },
-  { href: "/net-worth", label: "Net Worth", icon: Layers3 },
-  { href: "/reports", label: "Reports", icon: CalendarClock },
-  { href: "/ai", label: "Advisor", icon: Bot },
-  { href: "/settings", label: "Settings", icon: Settings },
+const navGroups = [
+  {
+    label: "Overview",
+    items: [
+      { href: "/dashboard", label: "Cash cockpit", icon: Gauge },
+      { href: "/transactions", label: "Ledger", icon: Receipt },
+      { href: "/reports", label: "Reports", icon: CalendarClock },
+    ],
+  },
+  {
+    label: "Entities",
+    items: [
+      { href: "/business", label: "UK LTD", icon: BriefcaseBusiness },
+      { href: "/personal", label: "Morocco personal", icon: Home },
+    ],
+  },
+  {
+    label: "Cash in",
+    items: [
+      { href: "/business/income", label: "Revenue", icon: BarChart3 },
+      { href: "/income-schedules", label: "Expected income", icon: Repeat },
+      { href: "/receivables", label: "Receivables", icon: PanelTop },
+    ],
+  },
+  {
+    label: "Cash out",
+    items: [
+      { href: "/business/expenses", label: "Business costs", icon: CreditCard },
+      { href: "/personal/expenses", label: "Spending", icon: Wallet },
+      { href: "/payroll", label: "Owner pay", icon: Landmark },
+      { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
+    ],
+  },
+  {
+    label: "Owed / plan",
+    items: [
+      { href: "/loans", label: "Loans", icon: ListChecks },
+      { href: "/personal/emergency-fund", label: "Runway", icon: PiggyBank },
+      { href: "/goals", label: "Goals", icon: Flag },
+      { href: "/net-worth", label: "Net worth", icon: Layers3 },
+      { href: "/business/tax", label: "Tax reserve", icon: Landmark },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/ai", label: "Advisor", icon: Bot },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
-const mobileItems = navItems.slice(0, 5);
+const mobileItems = [
+  navGroups[0].items[0],
+  navGroups[0].items[1],
+  navGroups[2].items[1],
+  navGroups[2].items[2],
+  navGroups[4].items[4],
+];
 
 export function SidebarNav() {
   return (
@@ -47,34 +87,29 @@ export function SidebarNav() {
         <p className="text-xs uppercase tracking-[0.18em] text-muted-ledger">Finance OS</p>
         <h1 className="mt-2 text-xl font-semibold">Cash cockpit</h1>
       </div>
-      <div className="mb-5 grid grid-cols-2 gap-2 px-2">
-        <select className="h-9 rounded-md border border-ledger-border bg-surface-inset px-2 text-xs text-foreground">
-          <option>Combined</option>
-          <option>Personal</option>
-          <option>Business</option>
-        </select>
-        <select className="h-9 rounded-md border border-ledger-border bg-surface-inset px-2 text-xs text-foreground" defaultValue={new Date().getFullYear()}>
-          {Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - index).map((year) => (
-            <option key={year}>{year}</option>
-          ))}
-        </select>
-      </div>
-      <nav className="space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-ledger transition hover:bg-white/[0.04] hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="space-y-5">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-2 px-3 text-[11px] uppercase tracking-[0.16em] text-muted-ledger">{group.label}</p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-ledger transition hover:bg-white/[0.04] hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
     </aside>
   );

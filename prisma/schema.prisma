@@ -26,6 +26,12 @@ enum ContextMode {
   BOTH
 }
 
+enum FinancialEntityType {
+  UK_LTD
+  MOROCCO_PERSONAL
+  MOROCCO_AUTO_ENTREPRENEUR
+}
+
 enum InvoiceStatus {
   PENDING
   INVOICED
@@ -44,6 +50,33 @@ enum RecurrenceFrequency {
   YEARLY
 }
 
+enum RecurringRuleType {
+  EXPECTED_INCOME
+  EXPECTED_EXPENSE
+  RECEIVABLE
+  SUBSCRIPTION
+  OWNER_PAY
+}
+
+enum RecurringCadence {
+  INTERVAL_DAYS
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY_DAY
+  SEMI_MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum ExpectedIncomeStatus {
+  FORECAST
+  DUE
+  SETTLED
+  SKIPPED
+  CANCELLED
+}
+
 enum PaymentFrequency {
   MONTHLY
   PER_PROJECT
@@ -56,6 +89,22 @@ enum LoanKind {
   CREDIT_CARD
   BUSINESS_LOAN
   BNPL
+}
+
+enum ReceivableKind {
+  CLIENT_INVOICE
+  PERSONAL_IOU
+  BUSINESS_RECEIVABLE
+  OTHER
+}
+
+enum ReceivableStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  DISPUTED
+  CANCELLED
 }
 
 enum GoalCategory {
@@ -73,6 +122,27 @@ enum NetWorthItemKind {
 enum TaxJurisdiction {
   MOROCCO
   UK
+  OTHER
+}
+
+enum TaxProfileType {
+  UK_LTD_CORPORATION_TAX
+  MOROCCO_AUTO_ENTREPRENEUR
+}
+
+enum TaxReserveStatus {
+  SUGGESTED
+  RESERVED
+  PAID
+  WAIVED
+}
+
+enum OwnerCompensationType {
+  SALARY
+  DIVIDEND
+  DIRECTOR_LOAN
+  REIMBURSEMENT
+  DRAWINGS
   OTHER
 }
 
@@ -120,9 +190,40 @@ model Category {
   parent       Category?       @relation("CategoryParent", fields: [parentId], references: [id])
   children     Category[]      @relation("CategoryParent")
   transactions Transaction[]
+  recurringRules RecurringRule[]
 
   @@index([type, context])
   @@index([deletedAt])
+}
+
+model FinancialEntity {
+  id                     String                @id @default(cuid())
+  slug                   String                @unique
+  name                   String
+  type                   FinancialEntityType
+  baseCurrency           Currency
+  country                String
+  taxResidence           String?
+  isActive               Boolean               @default(true)
+  sortOrder              Int                   @default(0)
+  settings               Json?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  transactions           Transaction[]
+  recurringTemplates     RecurringTemplate[]
+  recurringRules         RecurringRule[]
+  expectedIncomes        ExpectedIncome[]
+  receivables            Receivable[]
+  subscriptions          Subscription[]
+  loans                  Loan[]
+  goals                  Goal[]
+  taxProfiles            TaxProfile[]
+  taxReserves            TaxReserve[]
+  ownerCompensationsFrom OwnerCompensation[]   @relation("OwnerCompensationFrom")
+  ownerCompensationsTo   OwnerCompensation[]   @relation("OwnerCompensationTo")
+
+  @@index([type])
+  @@index([isActive, sortOrder])
 }
 
 model Transaction {
@@ -147,9 +248,11 @@ model Transaction {
   notes                String?
   tags                 String[]           @default([])
   transactionGroupId   String?
+  entityId             String?
   deletedAt            DateTime?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+  entity               FinancialEntity?   @relation(fields: [entityId], references: [id])
   category             Category?          @relation(fields: [categoryId], references: [id])
   recurringTemplate    RecurringTemplate? @relation(fields: [recurringTemplateId], references: [id])
   clientId             String?
@@ -159,8 +262,11 @@ model Transaction {
   attachments          Attachment[]
   loanPayments         LoanPayment[]
   goalContributions    GoalContribution[]
+  expectedIncomeSettlements ExpectedIncome[]
+  receivablePayments   ReceivablePayment[]
 
   @@index([date])
+  @@index([entityId, date])
   @@index([kind, context])
   @@index([currency])
   @@index([categoryId])
@@ -183,13 +289,74 @@ model RecurringTemplate {
   paymentMethod      String?
   vendor             String?
   notes              String?
+  entityId           String?
   deletedAt          DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  entity             FinancialEntity?    @relation(fields: [entityId], references: [id])
   transactions       Transaction[]
 
   @@index([nextDueDate])
+  @@index([entityId, nextDueDate])
   @@index([context, kind])
+}
+
+model RecurringRule {
+  id               String            @id @default(cuid())
+  entityId         String
+  title            String
+  ruleType         RecurringRuleType
+  cadence          RecurringCadence
+  intervalDays     Int?
+  dayOfMonth       Int?
+  secondDayOfMonth Int?
+  startDate        DateTime
+  endDate          DateTime?
+  nextDueDate      DateTime
+  autoCreate       Boolean           @default(false)
+  amountCents      Int
+  currency         Currency
+  counterparty     String?
+  categoryId       String?
+  notes            String?
+  deletedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  entity           FinancialEntity   @relation(fields: [entityId], references: [id])
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  expectedIncomes  ExpectedIncome[]
+
+  @@index([entityId, ruleType])
+  @@index([nextDueDate])
+  @@index([deletedAt])
+}
+
+model ExpectedIncome {
+  id                   String               @id @default(cuid())
+  entityId             String
+  recurringRuleId      String?
+  receivableId         String?
+  dueDate              DateTime
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal              @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  counterparty         String?
+  description          String
+  status               ExpectedIncomeStatus @default(FORECAST)
+  transactionId        String?
+  settledAt            DateTime?
+  notes                String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  entity               FinancialEntity      @relation(fields: [entityId], references: [id])
+  recurringRule        RecurringRule?       @relation(fields: [recurringRuleId], references: [id])
+  receivable           Receivable?          @relation(fields: [receivableId], references: [id])
+  transaction          Transaction?         @relation(fields: [transactionId], references: [id])
+
+  @@index([entityId, dueDate])
+  @@index([status, dueDate])
+  @@index([recurringRuleId])
 }
 
 model ExchangeRate {
@@ -219,6 +386,7 @@ model Client {
   updatedAt       DateTime      @updatedAt
   invoices        Invoice[]
   transactions    Transaction[]
+  receivables     Receivable[]
 
   @@index([name])
 }
@@ -243,6 +411,7 @@ model Invoice {
   updatedAt        DateTime      @updatedAt
   client           Client?       @relation(fields: [clientId], references: [id])
   transactions     Transaction[]
+  receivables      Receivable[]
 
   @@index([status, dueDate])
   @@index([issueDate])
@@ -300,11 +469,14 @@ model Subscription {
   cancelUrl          String?
   status             SubscriptionStatus  @default(ACTIVE)
   cancelledAt        DateTime?
+  entityId           String?
   deletedAt          DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  entity             FinancialEntity?    @relation(fields: [entityId], references: [id])
 
   @@index([nextBillingDate])
+  @@index([entityId, nextBillingDate])
   @@index([context, status])
 }
 
@@ -320,12 +492,15 @@ model Loan {
   expectedPayoffDate  DateTime?
   remainingBalanceCents Int
   notes               String?
+  entityId            String?
   deletedAt           DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+  entity              FinancialEntity? @relation(fields: [entityId], references: [id])
   payments            LoanPayment[]
 
   @@index([kind])
+  @@index([entityId, kind])
   @@index([expectedPayoffDate])
 }
 
@@ -359,11 +534,14 @@ model Goal {
   priority             Int                @default(3)
   category             GoalCategory
   notes                String?
+  entityId             String?
   deletedAt            DateTime?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+  entity               FinancialEntity?   @relation(fields: [entityId], references: [id])
   contributions        GoalContribution[]
 
+  @@index([entityId])
   @@index([priority])
   @@index([targetDate])
 }
@@ -384,6 +562,58 @@ model GoalContribution {
   transaction          Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([goalId, date])
+}
+
+model Receivable {
+  id                   String             @id @default(cuid())
+  entityId             String
+  kind                 ReceivableKind
+  status               ReceivableStatus   @default(OPEN)
+  counterparty         String
+  title                String
+  issueDate            DateTime
+  dueDate              DateTime?
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal            @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  paidAmountCents      Int                @default(0)
+  source               String?
+  clientId             String?
+  invoiceId            String?
+  notes                String?
+  deletedAt            DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  entity               FinancialEntity    @relation(fields: [entityId], references: [id])
+  client               Client?            @relation(fields: [clientId], references: [id])
+  invoice              Invoice?           @relation(fields: [invoiceId], references: [id])
+  payments             ReceivablePayment[]
+  expectedIncomes      ExpectedIncome[]
+
+  @@index([entityId, status])
+  @@index([dueDate])
+  @@index([counterparty])
+  @@index([deletedAt])
+}
+
+model ReceivablePayment {
+  id                   String       @id @default(cuid())
+  receivableId         String
+  transactionId        String?
+  date                 DateTime
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal      @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  notes                String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  receivable           Receivable   @relation(fields: [receivableId], references: [id])
+  transaction          Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([receivableId, date])
+  @@index([transactionId])
 }
 
 model EmergencyFundConfig {
@@ -505,6 +735,69 @@ model TaxEstimate {
   updatedAt            DateTime        @updatedAt
 
   @@index([jurisdiction, periodStart, periodEnd])
+}
+
+model TaxProfile {
+  id            String          @id @default(cuid())
+  entityId      String
+  type          TaxProfileType
+  name          String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  rules         Json
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  entity        FinancialEntity @relation(fields: [entityId], references: [id])
+  reserves      TaxReserve[]
+
+  @@index([entityId, type, isActive])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+model TaxReserve {
+  id                   String           @id @default(cuid())
+  entityId             String
+  taxProfileId         String?
+  periodStart          DateTime
+  periodEnd            DateTime
+  taxableBaseCents     Int
+  estimatedTaxCents    Int
+  reserveCents         Int
+  currency             Currency
+  assumptions          Json
+  status               TaxReserveStatus @default(SUGGESTED)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  entity               FinancialEntity  @relation(fields: [entityId], references: [id])
+  taxProfile           TaxProfile?      @relation(fields: [taxProfileId], references: [id])
+
+  @@index([entityId, periodStart, periodEnd])
+  @@index([status])
+}
+
+model OwnerCompensation {
+  id                    String                @id @default(cuid())
+  fromEntityId          String
+  toEntityId            String
+  date                  DateTime
+  amountCents           Int
+  currency              Currency
+  exchangeRateSnapshot  Decimal               @db.Decimal(18, 8)
+  madEquivalentCents    Int
+  paymentType           OwnerCompensationType
+  taxTreatment          String?
+  businessTransactionId String?
+  personalTransactionId String?
+  notes                 String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  fromEntity            FinancialEntity       @relation("OwnerCompensationFrom", fields: [fromEntityId], references: [id])
+  toEntity              FinancialEntity       @relation("OwnerCompensationTo", fields: [toEntityId], references: [id])
+
+  @@index([fromEntityId, date])
+  @@index([toEntityId, date])
+  @@index([paymentType])
 }
 
 model FinancialHealthScore {

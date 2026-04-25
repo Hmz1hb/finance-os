@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Plus, ScanLine } from "lucide-react";
 import { MobileNav, SidebarNav } from "@/components/app/nav";
 import { AIChatButton } from "@/components/app/ai-chat";
+import { EntityRail } from "@/components/app/entity-rail";
 import { Button } from "@/components/ui/button";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -9,7 +10,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh bg-background text-foreground">
       <SidebarNav />
       <main className="safe-top safe-bottom min-w-0 flex-1 pb-24 lg:pb-0">
-        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
+          <EntityRail />
+          {children}
+        </div>
       </main>
       <div className="fixed bottom-24 right-4 z-40 flex flex-col gap-3 lg:hidden">
         <Button asChild size="icon" variant="outline" aria-label="Scan receipt">

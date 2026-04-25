@@ -1,31 +1,106 @@
+import { Landmark, Scale } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaxReserveButton } from "@/components/app/tax-reserve-button";
 import { prisma } from "@/lib/server/db";
+import { taxCockpit } from "@/lib/server/tax";
 import { formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
 export default async function TaxPage() {
-  const [deadlines, estimates] = await Promise.all([
+  const [{ uk, morocco, reserves }, deadlines, profiles] = await Promise.all([
+    taxCockpit().catch(() => ({ uk: null, morocco: null, reserves: [] })),
     prisma.taxDeadline.findMany({ orderBy: { dueDate: "asc" }, take: 20 }).catch(() => []),
-    prisma.taxEstimate.findMany({ orderBy: { periodEnd: "desc" }, take: 8 }).catch(() => []),
+    prisma.taxProfile.findMany({ include: { entity: true }, orderBy: { effectiveFrom: "desc" } }).catch(() => []),
   ]);
+
   return (
     <>
-      <PageHeader title="Tax & compliance" description="Morocco auto-entrepreneur, UK corporation tax estimates, VAT readiness, and deadline reminders." badge="Compliance" />
-      <section className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Deadlines" value={`${deadlines.length}`} tone="deadline" />
-        <MetricCard label="Latest estimate" value={formatMoney(estimates[0]?.estimatedTaxCents ?? 0)} tone="risk" />
-        <MetricCard label="Jurisdictions" value="MA / UK" />
+      <PageHeader title="Tax reserve cockpit" description="Estimate exposure, show assumptions, and reserve cash without treating the app as a filing system." badge="Estimate only" />
+      <section className="grid gap-3 sm:grid-cols-4">
+        <MetricCard label="UK LTD estimate" value={formatMoney(uk?.estimatedTaxCents ?? 0, "GBP")} tone="risk" icon={<Scale className="h-5 w-5" />} />
+        <MetricCard label="Morocco estimate" value={formatMoney(morocco?.estimatedTaxCents ?? 0, "MAD")} tone="risk" icon={<Landmark className="h-5 w-5" />} />
+        <MetricCard label="UK VAT usage" value={`${Math.round(((uk?.assumptions as { vatThresholdUsage?: number } | undefined)?.vatThresholdUsage ?? 0) * 100)}%`} tone="plan" />
+        <MetricCard label="Reserve records" value={`${reserves.length}`} />
       </section>
+
+      <section className="mt-4 grid gap-4 xl:grid-cols-2">
+        <EstimateCard title="UK LTD corporation tax" estimate={uk} />
+        <EstimateCard title="Morocco auto-entrepreneur" estimate={morocco} />
+      </section>
+
+      <section className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Tax reserves</CardTitle></CardHeader>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <TaxReserveButton entityId="uk_ltd" label="Reserve UK LTD estimate" />
+            <TaxReserveButton entityId="morocco_personal" label="Reserve Morocco estimate" />
+          </div>
+          <div className="space-y-2">
+            {reserves.map((reserve) => (
+              <div key={reserve.id} className="rounded-md bg-surface-inset p-3">
+                <div className="flex justify-between gap-3">
+                  <p className="text-sm font-medium">{reserve.entity.name}</p>
+                  <p className="text-sm font-semibold text-orange-deadline">{formatMoney(reserve.reserveCents, reserve.currency)}</p>
+                </div>
+                <p className="text-xs text-muted-ledger">{reserve.status} · {reserve.periodStart.toISOString().slice(0, 10)} to {reserve.periodEnd.toISOString().slice(0, 10)}</p>
+              </div>
+            ))}
+            {reserves.length === 0 ? <p className="text-sm text-muted-ledger">No reserve records yet. Estimates above show the suggested reserve.</p> : null}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Editable rule assumptions</CardTitle></CardHeader>
+          <div className="space-y-2">
+            {profiles.map((profile) => (
+              <div key={profile.id} className="rounded-md bg-surface-inset p-3">
+                <p className="text-sm font-medium">{profile.name}</p>
+                <p className="text-xs text-muted-ledger">{profile.entity.name} · effective {profile.effectiveFrom.toISOString().slice(0, 10)}</p>
+                <pre className="mt-2 max-h-36 overflow-auto rounded bg-background/60 p-2 text-[11px] text-muted-ledger">{JSON.stringify(profile.rules, null, 2)}</pre>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </section>
+
       <Card className="mt-4">
-        <CardHeader><CardTitle>Tax calendar</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Deadline calendar</CardTitle></CardHeader>
         <div className="space-y-2">
           {deadlines.map((item) => <div key={item.id} className="rounded-md bg-surface-inset p-3 text-sm">{item.title} · {item.jurisdiction} · {item.dueDate.toISOString().slice(0, 10)}</div>)}
-          {deadlines.length === 0 ? <p className="text-sm text-muted-ledger">Seed or add deadlines for upcoming tax events.</p> : null}
+          {deadlines.length === 0 ? <p className="text-sm text-muted-ledger">Add deadlines for Companies House, HMRC, and Morocco declarations as your dates become fixed.</p> : null}
         </div>
       </Card>
     </>
+  );
+}
+
+type EstimateView = {
+  taxableBaseCents: number;
+  estimatedTaxCents: number;
+  reserveCents: number;
+  currency: "MAD" | "GBP" | "USD" | "EUR";
+  assumptions: unknown;
+};
+
+function EstimateCard({ title, estimate }: { title: string; estimate: EstimateView | null }) {
+  const assumptions = estimate?.assumptions as Record<string, unknown> | undefined;
+  return (
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      {estimate ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricCard label="Taxable base" value={formatMoney(estimate.taxableBaseCents, estimate.currency)} />
+            <MetricCard label="Tax estimate" value={formatMoney(estimate.estimatedTaxCents, estimate.currency)} tone="risk" />
+            <MetricCard label="Reserve" value={formatMoney(estimate.reserveCents, estimate.currency)} tone="deadline" />
+          </div>
+          <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-surface-inset p-3 text-xs text-muted-ledger">{JSON.stringify(assumptions, null, 2)}</pre>
+        </>
+      ) : (
+        <p className="text-sm text-muted-ledger">Estimate unavailable until the database is reachable.</p>
+      )}
+    </Card>
   );
 }

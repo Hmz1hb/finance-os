@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 
 export default async function PersonalPage() {
   const [income, expenses, goals, loans] = await Promise.all([
-    prisma.transaction.aggregate({ where: { context: "PERSONAL", kind: "INCOME", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
-    prisma.transaction.aggregate({ where: { context: "PERSONAL", kind: "EXPENSE", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
+    prisma.transaction.aggregate({ where: { entityId: "morocco_personal", kind: "INCOME", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
+    prisma.transaction.aggregate({ where: { entityId: "morocco_personal", kind: "EXPENSE", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
     prisma.goal.findMany({ where: { deletedAt: null }, orderBy: { priority: "asc" }, take: 6 }).catch(() => []),
     prisma.loan.aggregate({ where: { deletedAt: null }, _sum: { remainingBalanceCents: true } }).catch(() => null),
   ]);

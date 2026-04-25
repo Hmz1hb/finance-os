@@ -6,7 +6,7 @@ import { formatMoney } from "@/lib/finance/money";
 export const dynamic = "force-dynamic";
 
 export default async function PersonalExpensesPage() {
-  const rows = await prisma.transaction.findMany({ where: { context: "PERSONAL", kind: "EXPENSE", deletedAt: null }, include: { category: true }, orderBy: { date: "desc" }, take: 150 }).catch(() => []);
+  const rows = await prisma.transaction.findMany({ where: { entityId: "morocco_personal", kind: "EXPENSE", deletedAt: null }, include: { category: true }, orderBy: { date: "desc" }, take: 150 }).catch(() => []);
   return (
     <>
       <PageHeader title="Personal expenses" description="Fixed essentials, living costs, vehicle logs, health, lifestyle, home, education, giving, and uncategorized spending." badge="Spending" />

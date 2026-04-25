@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 export default async function BusinessPage() {
   const [income, expenses, invoices, clients] = await Promise.all([
-    prisma.transaction.aggregate({ where: { context: "BUSINESS", kind: "INCOME", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
-    prisma.transaction.aggregate({ where: { context: "BUSINESS", kind: "EXPENSE", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
+    prisma.transaction.aggregate({ where: { entityId: "uk_ltd", kind: "INCOME", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
+    prisma.transaction.aggregate({ where: { entityId: "uk_ltd", kind: "EXPENSE", deletedAt: null }, _sum: { madEquivalentCents: true } }).catch(() => null),
     prisma.invoice.findMany({ where: { deletedAt: null }, include: { client: true }, orderBy: { dueDate: "asc" }, take: 20 }).catch(() => []),
     prisma.client.findMany({ where: { deletedAt: null }, include: { transactions: true }, take: 20 }).catch(() => []),
   ]);

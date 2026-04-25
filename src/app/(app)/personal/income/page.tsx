@@ -6,7 +6,7 @@ import { formatMoney } from "@/lib/finance/money";
 export const dynamic = "force-dynamic";
 
 export default async function PersonalIncomePage() {
-  const rows = await prisma.transaction.findMany({ where: { context: "PERSONAL", kind: "INCOME", deletedAt: null }, include: { category: true }, orderBy: { date: "desc" }, take: 100 }).catch(() => []);
+  const rows = await prisma.transaction.findMany({ where: { entityId: "morocco_personal", kind: "INCOME", deletedAt: null }, include: { category: true }, orderBy: { date: "desc" }, take: 100 }).catch(() => []);
   return (
     <>
       <PageHeader title="Personal income" description="Salary from business, side income, gifts, refunds, and other personal inflows." badge="Income" />
