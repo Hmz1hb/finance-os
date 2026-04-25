@@ -1,0 +1,48 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { LockKeyhole } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+export function LoginForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    const form = new FormData(event.currentTarget);
+    const result = await signIn("credentials", {
+      username: form.get("username"),
+      password: form.get("password"),
+      redirect: false,
+    });
+    setLoading(false);
+    if (result?.error) {
+      setError("Invalid credentials or missing ADMIN_USER / ADMIN_PASSWORD.");
+      return;
+    }
+    router.push(params.get("callbackUrl") || "/dashboard");
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-ledger/15 text-blue-ledger">
+        <LockKeyhole className="h-6 w-6" />
+      </div>
+      <Input name="username" placeholder="Username" autoComplete="username" required />
+      <Input name="password" placeholder="Password" type="password" autoComplete="current-password" required />
+      {error ? <p className="text-sm text-red-risk">{error}</p> : null}
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? "Signing in..." : "Sign in"}
+      </Button>
+    </form>
+  );
+}

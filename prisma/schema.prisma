@@ -1,0 +1,518 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Currency {
+  MAD
+  GBP
+  USD
+  EUR
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  ADJUSTMENT
+}
+
+enum ContextMode {
+  PERSONAL
+  BUSINESS
+  BOTH
+}
+
+enum InvoiceStatus {
+  PENDING
+  INVOICED
+  RECEIVED
+  LATE
+  DISPUTED
+  CANCELLED
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum PaymentFrequency {
+  MONTHLY
+  PER_PROJECT
+  HOURLY
+}
+
+enum LoanKind {
+  OWED_BY_ME
+  OWED_TO_ME
+  CREDIT_CARD
+  BUSINESS_LOAN
+  BNPL
+}
+
+enum GoalCategory {
+  NEEDS
+  WANTS
+  BUSINESS
+  INVESTMENT
+}
+
+enum NetWorthItemKind {
+  ASSET
+  LIABILITY
+}
+
+enum TaxJurisdiction {
+  MOROCCO
+  UK
+  OTHER
+}
+
+enum InsightType {
+  WEEKLY_DIGEST
+  MONTHLY_SUMMARY
+  ANOMALY
+  BUDGET_RECOMMENDATION
+  HEALTH_SCORE
+}
+
+enum AttachmentType {
+  IMAGE
+  PDF
+  OTHER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAUSED
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id           String          @id @default(cuid())
+  name         String
+  slug         String          @unique
+  type         TransactionType
+  context      ContextMode
+  parentId     String?
+  color        String?
+  icon         String?
+  isSystem     Boolean         @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  parent       Category?       @relation("CategoryParent", fields: [parentId], references: [id])
+  children     Category[]      @relation("CategoryParent")
+  transactions Transaction[]
+
+  @@index([type, context])
+  @@index([deletedAt])
+}
+
+model Transaction {
+  id                   String             @id @default(cuid())
+  date                 DateTime
+  kind                 TransactionType
+  context              ContextMode
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal            @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  categoryId           String?
+  subcategory          String?
+  description          String
+  counterparty         String?
+  source               String?
+  status               String             @default("cleared")
+  paymentMethod        String?
+  isRecurring          Boolean            @default(false)
+  recurringTemplateId  String?
+  taxDeductible        Boolean            @default(false)
+  notes                String?
+  tags                 String[]           @default([])
+  transactionGroupId   String?
+  deletedAt            DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  category             Category?          @relation(fields: [categoryId], references: [id])
+  recurringTemplate    RecurringTemplate? @relation(fields: [recurringTemplateId], references: [id])
+  clientId             String?
+  client               Client?            @relation(fields: [clientId], references: [id])
+  invoiceId            String?
+  invoice              Invoice?           @relation(fields: [invoiceId], references: [id])
+  attachments          Attachment[]
+  loanPayments         LoanPayment[]
+  goalContributions    GoalContribution[]
+
+  @@index([date])
+  @@index([kind, context])
+  @@index([currency])
+  @@index([categoryId])
+  @@index([deletedAt])
+}
+
+model RecurringTemplate {
+  id                 String              @id @default(cuid())
+  title              String
+  kind               TransactionType
+  context            ContextMode
+  amountCents        Int
+  currency           Currency
+  categoryId         String?
+  frequency          RecurrenceFrequency
+  startDate          DateTime
+  endDate            DateTime?
+  nextDueDate        DateTime
+  autoGenerate       Boolean             @default(false)
+  paymentMethod      String?
+  vendor             String?
+  notes              String?
+  deletedAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  transactions       Transaction[]
+
+  @@index([nextDueDate])
+  @@index([context, kind])
+}
+
+model ExchangeRate {
+  id             String   @id @default(cuid())
+  date           DateTime
+  baseCurrency   Currency
+  targetCurrency Currency
+  rate           Decimal  @db.Decimal(18, 8)
+  source         String   @default("frankfurter")
+  isManual       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date, baseCurrency, targetCurrency])
+  @@index([baseCurrency, targetCurrency, date])
+}
+
+model Client {
+  id              String        @id @default(cuid())
+  name            String
+  email           String?
+  company         String?
+  currency        Currency      @default(MAD)
+  notes           String?
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  invoices        Invoice[]
+  transactions    Transaction[]
+
+  @@index([name])
+}
+
+model Invoice {
+  id               String        @id @default(cuid())
+  invoiceNumber    String        @unique
+  clientId         String?
+  source           String
+  description      String?
+  issueDate        DateTime
+  dueDate          DateTime?
+  receivedDate     DateTime?
+  amountCents      Int
+  currency         Currency
+  exchangeRateSnapshot Decimal   @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  status           InvoiceStatus @default(PENDING)
+  notes            String?
+  deletedAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  client           Client?       @relation(fields: [clientId], references: [id])
+  transactions     Transaction[]
+
+  @@index([status, dueDate])
+  @@index([issueDate])
+}
+
+model PayrollPerson {
+  id               String           @id @default(cuid())
+  name             String
+  role             String
+  paymentFrequency PaymentFrequency
+  rateCents        Int
+  currency         Currency
+  paymentMethod    String?
+  isSelf           Boolean          @default(false)
+  notes            String?
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  payments         PayrollPayment[]
+}
+
+model PayrollPayment {
+  id                   String        @id @default(cuid())
+  personId             String
+  date                 DateTime
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal       @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  paymentType          String
+  periodLabel          String?
+  businessTransactionId String?
+  personalTransactionId String?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  person               PayrollPerson @relation(fields: [personId], references: [id])
+
+  @@index([date])
+  @@index([personId])
+}
+
+model Subscription {
+  id                 String              @id @default(cuid())
+  name               String
+  context            ContextMode
+  amountCents        Int
+  currency           Currency
+  exchangeRateSnapshot Decimal           @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  billingCycle       RecurrenceFrequency
+  nextBillingDate    DateTime
+  autoRenew          Boolean             @default(true)
+  category           String
+  cancelUrl          String?
+  status             SubscriptionStatus  @default(ACTIVE)
+  cancelledAt        DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([nextBillingDate])
+  @@index([context, status])
+}
+
+model Loan {
+  id                  String        @id @default(cuid())
+  kind                LoanKind
+  lenderName          String
+  originalAmountCents Int
+  currency            Currency
+  interestRate        Decimal       @db.Decimal(8, 4)
+  monthlyPaymentCents Int
+  startDate           DateTime
+  expectedPayoffDate  DateTime?
+  remainingBalanceCents Int
+  notes               String?
+  deletedAt           DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  payments            LoanPayment[]
+
+  @@index([kind])
+  @@index([expectedPayoffDate])
+}
+
+model LoanPayment {
+  id                   String      @id @default(cuid())
+  loanId               String
+  transactionId        String?
+  date                 DateTime
+  amountCents          Int
+  principalCents       Int
+  interestCents        Int         @default(0)
+  currency             Currency
+  exchangeRateSnapshot Decimal     @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  notes                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  loan                 Loan        @relation(fields: [loanId], references: [id])
+  transaction          Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([loanId, date])
+}
+
+model Goal {
+  id                   String             @id @default(cuid())
+  name                 String
+  targetAmountCents    Int
+  currency             Currency
+  currentSavedCents    Int                @default(0)
+  targetDate           DateTime?
+  priority             Int                @default(3)
+  category             GoalCategory
+  notes                String?
+  deletedAt            DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  contributions        GoalContribution[]
+
+  @@index([priority])
+  @@index([targetDate])
+}
+
+model GoalContribution {
+  id                   String       @id @default(cuid())
+  goalId               String
+  transactionId        String?
+  date                 DateTime
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal      @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  notes                String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  goal                 Goal         @relation(fields: [goalId], references: [id])
+  transaction          Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([goalId, date])
+}
+
+model EmergencyFundConfig {
+  id                   String   @id @default(cuid())
+  targetMonths         Int      @default(6)
+  currentBalanceCents  Int      @default(0)
+  currency             Currency @default(MAD)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model EmergencyFundContribution {
+  id                   String   @id @default(cuid())
+  date                 DateTime
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal  @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  notes                String?
+  createdAt            DateTime @default(now())
+}
+
+model NetWorthSnapshot {
+  id                   String         @id @default(cuid())
+  snapshotDate         DateTime       @default(now())
+  totalAssetsCents     Int
+  totalLiabilitiesCents Int
+  netWorthCents        Int
+  currency             Currency       @default(MAD)
+  notes                String?
+  createdAt            DateTime       @default(now())
+  items                NetWorthItem[]
+
+  @@index([snapshotDate])
+}
+
+model NetWorthItem {
+  id                   String           @id @default(cuid())
+  snapshotId           String?
+  name                 String
+  kind                 NetWorthItemKind
+  category             String
+  amountCents          Int
+  currency             Currency
+  exchangeRateSnapshot Decimal          @db.Decimal(18, 8)
+  madEquivalentCents   Int
+  includeInSnapshots   Boolean          @default(true)
+  notes                String?
+  deletedAt            DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  snapshot             NetWorthSnapshot? @relation(fields: [snapshotId], references: [id])
+
+  @@index([kind, category])
+}
+
+model Attachment {
+  id              String         @id @default(cuid())
+  transactionId   String?
+  s3Key           String
+  thumbnailS3Key  String?
+  filename        String
+  fileType        AttachmentType
+  contentType     String
+  fileSize        Int
+  ocrResult       Json?
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  transaction     Transaction?   @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  title     String
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model AIInsight {
+  id          String      @id @default(cuid())
+  type        InsightType
+  content     String
+  payload     Json?
+  generatedAt DateTime    @default(now())
+  read        Boolean     @default(false)
+
+  @@index([type, generatedAt])
+}
+
+model TaxDeadline {
+  id           String          @id @default(cuid())
+  title        String
+  jurisdiction TaxJurisdiction
+  dueDate      DateTime
+  notes        String?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([jurisdiction, dueDate])
+}
+
+model TaxEstimate {
+  id                   String          @id @default(cuid())
+  jurisdiction         TaxJurisdiction
+  periodStart          DateTime
+  periodEnd            DateTime
+  taxableBaseCents     Int
+  estimatedTaxCents    Int
+  currency             Currency        @default(MAD)
+  breakdown            Json
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([jurisdiction, periodStart, periodEnd])
+}
+
+model FinancialHealthScore {
+  id        String   @id @default(cuid())
+  date      DateTime
+  score     Int
+  breakdown Json
+  createdAt DateTime @default(now())
+
+  @@unique([date])
+}
