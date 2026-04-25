@@ -1,3 +1,4 @@
+import { subDays } from "date-fns";
 import { prisma } from "@/lib/server/db";
 import { dashboardSummary } from "@/lib/server/analytics";
 
@@ -6,11 +7,16 @@ function clamp(value: number, min = 0, max = 100) {
 }
 
 export async function calculateFinancialHealthScore() {
-  const [summary, emergency, loans, goals] = await Promise.all([
+  const [summary, emergency, loans, goals, incomeSources] = await Promise.all([
     dashboardSummary("COMBINED"),
     prisma.emergencyFundConfig.findFirst(),
     prisma.loan.aggregate({ where: { deletedAt: null }, _sum: { remainingBalanceCents: true, monthlyPaymentCents: true } }),
     prisma.goal.findMany({ where: { deletedAt: null } }),
+    prisma.transaction.groupBy({
+      by: ["counterparty"],
+      where: { kind: "INCOME", deletedAt: null, date: { gte: subDays(new Date(), 90) } },
+      _count: { _all: true },
+    }),
   ]);
 
   const monthlyExpenses = Math.max(1, Math.round(summary.expenseCents / Math.max(1, new Date().getUTCMonth() + 1)));
@@ -21,12 +27,16 @@ export async function calculateFinancialHealthScore() {
       ? 50
       : goals.reduce((sum, goal) => sum + clamp((goal.currentSavedCents / Math.max(goal.targetAmountCents, 1)) * 100), 0) / goals.length;
 
+  const distinctIncomeSources = incomeSources.filter((source) => source.counterparty && source._count._all > 0).length;
+  const incomeDiversification =
+    distinctIncomeSources >= 4 ? 100 : distinctIncomeSources === 3 ? 70 : distinctIncomeSources === 2 ? 40 : 0;
+
   const breakdown = {
     savingsRate: clamp(summary.savingsRate * 3),
     emergencyFund: clamp((emergencyMonths / 6) * 100),
     debtToIncome: clamp(100 - debtToIncome * 100),
     goalProgress: clamp(goalProgress),
-    incomeDiversification: 60,
+    incomeDiversification,
   };
 
   const score = Math.round(

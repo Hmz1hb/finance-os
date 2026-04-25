@@ -1,26 +1,38 @@
 import { addDays } from "date-fns";
+import type { Prisma } from "@prisma/client";
 import { RecurringRuleType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
 
+function expectedIncomeWindow(now: Date) {
+  return { gte: now, lte: addDays(now, 30) };
+}
+
+async function cashBalanceCents(prismaWhere: Prisma.TransactionWhereInput) {
+  const [income, expenses] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { ...prismaWhere, kind: "INCOME", deletedAt: null },
+      _sum: { madEquivalentCents: true },
+    }),
+    prisma.transaction.aggregate({
+      where: { ...prismaWhere, kind: "EXPENSE", deletedAt: null },
+      _sum: { madEquivalentCents: true },
+    }),
+  ]);
+  return (income._sum.madEquivalentCents ?? 0) - (expenses._sum.madEquivalentCents ?? 0);
+}
+
 export async function entityRailSummary() {
   const entities = await listEntities();
   const now = new Date();
-  const soon = addDays(now, 30);
+  const window = expectedIncomeWindow(now);
 
   const rows = await Promise.all(
     entities.map(async (entity) => {
-      const [income, expenses, expected, overdueReceivables, taxReserve] = await Promise.all([
-        prisma.transaction.aggregate({
-          where: { entityId: entity.id, kind: "INCOME", deletedAt: null },
-          _sum: { madEquivalentCents: true },
-        }),
-        prisma.transaction.aggregate({
-          where: { entityId: entity.id, kind: "EXPENSE", deletedAt: null },
-          _sum: { madEquivalentCents: true },
-        }),
+      const [cashCents, expected, overdueReceivables, taxReserve] = await Promise.all([
+        cashBalanceCents({ entityId: entity.id }),
         prisma.expectedIncome.aggregate({
-          where: { entityId: entity.id, status: { in: ["FORECAST", "DUE"] }, dueDate: { gte: now, lte: soon } },
+          where: { entityId: entity.id, status: { in: ["FORECAST", "DUE"] }, dueDate: window },
           _sum: { madEquivalentCents: true },
         }),
         prisma.receivable.aggregate({
@@ -36,7 +48,7 @@ export async function entityRailSummary() {
 
       return {
         entity,
-        cashCents: (income._sum.madEquivalentCents ?? 0) - (expenses._sum.madEquivalentCents ?? 0),
+        cashCents,
         expectedCents: expected._sum.madEquivalentCents ?? 0,
         overdueReceivableCents: (overdueReceivables._sum.madEquivalentCents ?? 0) - (overdueReceivables._sum.paidAmountCents ?? 0),
         overdueReceivableCount: overdueReceivables._count,
@@ -50,10 +62,11 @@ export async function entityRailSummary() {
 
 export async function cockpitSummary(entityId?: string) {
   const now = new Date();
-  const soon = addDays(now, 30);
+  const window = expectedIncomeWindow(now);
   const whereEntity = entityId ? { entityId } : {};
 
-  const [transactions, expectedIncome, receivables, reserves, ownerPay, recurringRules, entities] = await Promise.all([
+  const [cashCents, transactions, expectedIncome, receivables, reserves, ownerPay, recurringRules, entities] = await Promise.all([
+    cashBalanceCents(whereEntity),
     prisma.transaction.findMany({
       where: { ...whereEntity, deletedAt: null },
       include: { entity: true, category: true },
@@ -61,7 +74,7 @@ export async function cockpitSummary(entityId?: string) {
       take: 12,
     }),
     prisma.expectedIncome.findMany({
-      where: { ...whereEntity, status: { in: ["FORECAST", "DUE"] }, dueDate: { lte: soon } },
+      where: { ...whereEntity, status: { in: ["FORECAST", "DUE"] }, dueDate: window },
       include: { entity: true },
       orderBy: { dueDate: "asc" },
       take: 12,
@@ -97,14 +110,12 @@ export async function cockpitSummary(entityId?: string) {
     listEntities(),
   ]);
 
-  const incomeCents = transactions.filter((item) => item.kind === "INCOME").reduce((sum, item) => sum + item.madEquivalentCents, 0);
-  const expenseCents = transactions.filter((item) => item.kind === "EXPENSE").reduce((sum, item) => sum + item.madEquivalentCents, 0);
   const receivableOpenCents = receivables.reduce((sum, item) => sum + Math.max(0, item.madEquivalentCents - item.paidAmountCents), 0);
   const overdueReceivableCount = receivables.filter((item) => item.dueDate && item.dueDate < now).length;
 
   return {
     entities,
-    cashCents: incomeCents - expenseCents,
+    cashCents,
     expectedIncomeCents: expectedIncome.reduce((sum, item) => sum + item.madEquivalentCents, 0),
     receivableOpenCents,
     overdueReceivableCount,
