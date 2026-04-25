@@ -1,3 +1,4 @@
+import { RecurringRuleType } from "@prisma/client";
 import { IncomeScheduleForm } from "@/components/app/income-schedule-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,15 @@ export const dynamic = "force-dynamic";
 export default async function IncomeSchedulesPage() {
   const [entities, rules, expected] = await Promise.all([
     listEntities().catch(() => []),
-    prisma.recurringRule.findMany({ where: { deletedAt: null }, include: { entity: true }, orderBy: { nextDueDate: "asc" }, take: 80 }).catch(() => []),
+    prisma.recurringRule.findMany({
+      where: {
+        deletedAt: null,
+        ruleType: { in: [RecurringRuleType.EXPECTED_INCOME, RecurringRuleType.RECEIVABLE] },
+      },
+      include: { entity: true },
+      orderBy: { nextDueDate: "asc" },
+      take: 80,
+    }).catch(() => []),
     prisma.expectedIncome.findMany({ where: { status: { in: ["FORECAST", "DUE"] } }, include: { entity: true }, orderBy: { dueDate: "asc" }, take: 30 }).catch(() => []),
   ]);
 

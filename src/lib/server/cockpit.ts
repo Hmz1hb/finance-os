@@ -1,4 +1,5 @@
 import { addDays } from "date-fns";
+import { RecurringRuleType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
 
@@ -84,7 +85,11 @@ export async function cockpitSummary(entityId?: string) {
       take: 8,
     }),
     prisma.recurringRule.findMany({
-      where: { ...whereEntity, deletedAt: null },
+      where: {
+        ...whereEntity,
+        deletedAt: null,
+        ruleType: { in: [RecurringRuleType.EXPECTED_EXPENSE, RecurringRuleType.SUBSCRIPTION, RecurringRuleType.OWNER_PAY] },
+      },
       include: { entity: true },
       orderBy: { nextDueDate: "asc" },
       take: 8,
