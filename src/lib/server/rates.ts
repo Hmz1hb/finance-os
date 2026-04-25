@@ -2,7 +2,9 @@ import { Currency, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 
 const supportedCurrencies = [Currency.MAD, Currency.GBP, Currency.USD, Currency.EUR] as const;
-const frankfurterUrl = "https://api.frankfurter.app/latest?from=GBP&to=MAD,USD,EUR";
+// Frankfurter (ECB-backed) does not list MAD, so we use open.er-api.com which covers it and needs no key.
+const ratesApiUrl = "https://open.er-api.com/v6/latest/GBP";
+const ratesSource = "open-er-api";
 
 function startOfUtcDay(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -55,23 +57,42 @@ export async function getRateMatrixFromDb() {
 }
 
 export async function refreshExchangeRates() {
-  const response = await fetch(frankfurterUrl, { next: { revalidate: 60 * 60 * 24 } });
+  const response = await fetch(ratesApiUrl, { next: { revalidate: 60 * 60 * 24 } });
   if (!response.ok) {
-    throw new Error(`Frankfurter API failed with ${response.status}`);
+    throw new Error(`Exchange rates API failed with ${response.status}`);
   }
-  const payload = (await response.json()) as { date: string; rates: Record<string, number> };
-  const date = new Date(`${payload.date}T00:00:00.000Z`);
-
-  const gbpToMad = payload.rates.MAD;
-  if (!gbpToMad) throw new Error("Frankfurter response missing GBP to MAD rate");
+  const payload = (await response.json()) as {
+    result?: string;
+    time_last_update_unix?: number;
+    rates?: Record<string, number>;
+  };
+  if (payload.result && payload.result !== "success") {
+    throw new Error(`Exchange rates API returned result=${payload.result}`);
+  }
+  const rates = payload.rates ?? {};
+  const gbpToMad = rates.MAD;
+  const gbpToUsd = rates.USD;
+  const gbpToEur = rates.EUR;
+  if (!gbpToMad || !gbpToUsd || !gbpToEur) {
+    throw new Error("Exchange rates API response missing GBP→MAD/USD/EUR");
+  }
+  const date = startOfUtcDay(
+    payload.time_last_update_unix ? new Date(payload.time_last_update_unix * 1000) : new Date(),
+  );
 
   const entries: Array<{ baseCurrency: Currency; targetCurrency: Currency; rate: number }> = [
     { baseCurrency: Currency.GBP, targetCurrency: Currency.MAD, rate: gbpToMad },
     { baseCurrency: Currency.MAD, targetCurrency: Currency.GBP, rate: 1 / gbpToMad },
-    { baseCurrency: Currency.USD, targetCurrency: Currency.MAD, rate: gbpToMad / payload.rates.USD },
-    { baseCurrency: Currency.EUR, targetCurrency: Currency.MAD, rate: gbpToMad / payload.rates.EUR },
-    { baseCurrency: Currency.GBP, targetCurrency: Currency.USD, rate: payload.rates.USD },
-    { baseCurrency: Currency.GBP, targetCurrency: Currency.EUR, rate: payload.rates.EUR },
+    { baseCurrency: Currency.USD, targetCurrency: Currency.MAD, rate: gbpToMad / gbpToUsd },
+    { baseCurrency: Currency.EUR, targetCurrency: Currency.MAD, rate: gbpToMad / gbpToEur },
+    { baseCurrency: Currency.MAD, targetCurrency: Currency.USD, rate: gbpToUsd / gbpToMad },
+    { baseCurrency: Currency.MAD, targetCurrency: Currency.EUR, rate: gbpToEur / gbpToMad },
+    { baseCurrency: Currency.GBP, targetCurrency: Currency.USD, rate: gbpToUsd },
+    { baseCurrency: Currency.USD, targetCurrency: Currency.GBP, rate: 1 / gbpToUsd },
+    { baseCurrency: Currency.GBP, targetCurrency: Currency.EUR, rate: gbpToEur },
+    { baseCurrency: Currency.EUR, targetCurrency: Currency.GBP, rate: 1 / gbpToEur },
+    { baseCurrency: Currency.USD, targetCurrency: Currency.EUR, rate: gbpToEur / gbpToUsd },
+    { baseCurrency: Currency.EUR, targetCurrency: Currency.USD, rate: gbpToUsd / gbpToEur },
     { baseCurrency: Currency.MAD, targetCurrency: Currency.MAD, rate: 1 },
     { baseCurrency: Currency.GBP, targetCurrency: Currency.GBP, rate: 1 },
     { baseCurrency: Currency.USD, targetCurrency: Currency.USD, rate: 1 },
@@ -88,8 +109,8 @@ export async function refreshExchangeRates() {
             targetCurrency: entry.targetCurrency,
           },
         },
-        create: { ...entry, date, rate: entry.rate, source: "frankfurter" },
-        update: { rate: entry.rate, source: "frankfurter", isManual: false },
+        create: { ...entry, date, rate: entry.rate, source: ratesSource },
+        update: { rate: entry.rate, source: ratesSource, isManual: false },
       }),
     ),
   );

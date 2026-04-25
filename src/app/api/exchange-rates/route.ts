@@ -19,10 +19,26 @@ export async function GET() {
   }
 }
 
+async function readBody(request: NextRequest): Promise<Record<string, unknown>> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  }
+  if (
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType.includes("multipart/form-data")
+  ) {
+    const form = await request.formData().catch(() => null);
+    if (!form) return {};
+    return Object.fromEntries(form.entries());
+  }
+  return (await request.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const body = await request.json().catch(() => ({}));
+    const body = await readBody(request);
     if (body.action === "refresh") {
       await refreshExchangeRates();
       return NextResponse.json(await rateSummary());

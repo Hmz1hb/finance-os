@@ -20,7 +20,8 @@ export default async function SettingsPage() {
           <CardHeader><CardTitle>Exchange rates</CardTitle></CardHeader>
           <p className="mb-4 text-sm text-muted-ledger">Rates last updated: {rates.lastUpdated ? rates.lastUpdated.toISOString() : "never"}</p>
           <form action="/api/exchange-rates" method="post">
-            <Button type="button" variant="outline"><RefreshCw className="h-4 w-4" /> Refresh via API</Button>
+            <input type="hidden" name="action" value="refresh" />
+            <Button type="submit" variant="outline"><RefreshCw className="h-4 w-4" /> Refresh via API</Button>
           </form>
           <div className="mt-4 space-y-2">
             {rates.rates.map((rate) => <div key={rate.pair} className="flex justify-between rounded-md bg-surface-inset p-3 text-sm"><span>{rate.pair}</span><span>{rate.rate.toFixed(4)} {rate.isManual ? "manual" : rate.source}</span></div>)}
