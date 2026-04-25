@@ -4,6 +4,7 @@ import { toCents } from "@/lib/finance/money";
 import { nextRecurringRuleDate } from "@/lib/finance/recurrence";
 import { contextForEntityType } from "@/lib/server/entities";
 import { getMadRate } from "@/lib/server/rates";
+import { HttpError } from "@/lib/server/errors";
 
 export async function createExpectedIncomeFromRule(rule: RecurringRule) {
   const rate = await getMadRate(rule.currency);
@@ -77,10 +78,17 @@ export async function settleExpectedIncome(input: {
   amount?: string | number;
   notes?: string | null;
 }) {
-  const expected = await prisma.expectedIncome.findUniqueOrThrow({
+  const expected = await prisma.expectedIncome.findUnique({
     where: { id: input.id },
     include: { entity: true },
   });
+  if (!expected) throw new HttpError(404, "Expected income not found");
+  if (expected.status === "SETTLED") {
+    throw new HttpError(409, "Expected income is already settled");
+  }
+  if (expected.status === "CANCELLED") {
+    throw new HttpError(409, "Expected income is cancelled");
+  }
   const amountCents = input.amount === undefined ? expected.amountCents : toCents(input.amount);
   const rate = await getMadRate(expected.currency);
   const groupId = crypto.randomUUID();

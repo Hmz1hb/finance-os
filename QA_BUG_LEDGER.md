@@ -40,7 +40,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
   - **Page:** `/payroll`
   - **Repro:** Same.
 
-- [ ] **P0 — Loans: no edit, no delete**
+- [x] **P0 — Loans: no edit, no delete** *(Phase 2: API; row actions in Phase 4)*
   - **Page:** `/loans`
   - **Repro:** `DELETE`/`PATCH /api/loans/[id]` → 404.
   - **Expected:** Edit and delete; otherwise a single bad-data loan poisons every aggregate forever.
@@ -317,7 +317,7 @@ Round 2 results will be appended below this line.
   - **Repro:** On a 1,000 GBP receivable, post amounts 9999, 0, -100 → all 200. `paidAmountCents` ends 1,049,900 vs `amountCents` 100,000 (10× overpaid). Status flips to PAID after first overpayment.
   - **Expected:** 4xx with field error; clamp at outstanding balance.
 
-- [ ] **P0 — `expected-income/[id]/settle` is NOT idempotent — duplicate income on retry**
+- [x] **P0 — `expected-income/[id]/settle` is NOT idempotent — duplicate income on retry** *(Phase 2)*
   - **Page:** `POST /api/expected-income/[id]/settle`
   - **Repro:** Settle the same expected-income twice → two separate INCOME transactions created (`cmoe4oyus003m…`, `cmoe4oyxn003n…`) and parent `recurringRule.nextDueDate` advances twice.
   - **Expected:** Second call → 409 / no-op when status already SETTLED.
@@ -327,13 +327,13 @@ Round 2 results will be appended below this line.
   - **Repro:** `{amount:-500, currency:"GBP", paymentType:"salary"}` → 200, persisted twin transactions with `amountCents:-50000`. Net result: business "earns" 500 GBP back from a negative payroll.
   - **Expected:** 4xx.
 
-- [ ] **P0 — No goal-contribution / update / delete endpoint**
+- [x] **P0 — No goal-contribution / update / delete endpoint** *(Phase 2)*
   - **Page:** `/api/goals/[id]/*`
   - **Repro:** `POST /api/goals/[id]/contributions` → 404, `PATCH /api/goals/[id]` → 404, `PUT` → 404, `DELETE` → 404.
   - **Expected:** A way to increment `currentSavedCents` and mark a goal complete.
   - **Actual:** Goals are write-once; progress can never update after creation.
 
-- [ ] **P0 — No loan-payment endpoint**
+- [x] **P0 — No loan-payment endpoint** *(Phase 2: payment endpoint records principal/interest split & decreases balance; auto-interest accrual deferred — schema lacks `lastInterestAccrualAt`)*
   - **Page:** `/api/loans/[id]/*`
   - **Repro:** `POST /api/loans/[id]/payments`, `/pay`, `PATCH /api/loans/[id]`, `/api/loan-payments` — all 404.
   - **Expected:** A way to record payments that decreases `remainingBalanceCents` and accrues interest.

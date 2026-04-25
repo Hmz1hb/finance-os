@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { AttachmentType } from "@prisma/client";
@@ -83,6 +83,10 @@ export async function uploadReceiptObject(input: {
   }
 
   return { key, thumbnailKey, contentType: prepared.contentType, size: prepared.body.byteLength };
+}
+
+export async function deleteReceiptObject(key: string) {
+  await s3.send(new DeleteObjectCommand({ Bucket: requireBucket(), Key: key }));
 }
 
 export async function presignedGetUrl(key: string, expiresIn = 3600) {

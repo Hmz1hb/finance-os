@@ -1,26 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { auth } from "../../../auth";
+import { HttpError, type ZodIssueSummary } from "@/lib/server/errors";
+
+export { HttpError } from "@/lib/server/errors";
 
 export async function requireSession() {
   const session = await auth();
   if (!session?.user) {
-    throw Object.assign(new Error("Unauthorized"), { status: 401 });
+    throw new HttpError(401, "Unauthorized");
   }
   return session;
-}
-
-type ZodIssueSummary = { path: string; message: string };
-
-export class HttpError extends Error {
-  status: number;
-  issues?: ZodIssueSummary[];
-
-  constructor(status: number, message: string, issues?: ZodIssueSummary[]) {
-    super(message);
-    this.status = status;
-    this.issues = issues;
-  }
 }
 
 function summarizeZodIssues(error: ZodError): ZodIssueSummary[] {
