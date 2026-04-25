@@ -304,7 +304,7 @@ Round 2 results will be appended below this line.
   - **Expected:** Allowlist content-types (PDF, JPEG, PNG, WEBP, HEIC); re-derive content-type server-side from magic bytes; serve downloads with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`.
   - **Actual:** Combined with presigned URLs whose path ends `.html`, an uploader could host phishing/XSS pages on the app's S3 bucket and share a presigned link.
 
-- [ ] **P0 — No data-model multi-tenancy: `Transaction` has no `userId` column**
+- [ ] **P0 — No data-model multi-tenancy: `Transaction` has no `userId` column** *(Deferred — single-user app today; adding userId NOT NULL is a project of its own with backfill + auth-table migration; gate this when adding a second account)*
   - **Page:** schema-wide
   - **Repro:** `GET /api/transactions` (authed) returns 145 rows, none has a `userId` field — only `entityId`.
   - **Expected:** Add `userId` (or `tenantId`) to every owned entity before any second account is created.
@@ -381,7 +381,7 @@ Round 2 results will be appended below this line.
 
 ### Previously-blocked flows (Agent C)
 
-- [ ] **P1 — Raw Prisma error leaked from `expected-income/[id]/settle` on bad ID**
+- [x] **P1 — Raw Prisma error leaked from `expected-income/[id]/settle` on bad ID** *(Phase 2 — settleExpectedIncome now does findUnique + HttpError(404, "Expected income not found"))*
   - **Repro:** Bogus ID → 500 with body `Invalid \`prisma.expectedIncome.findUniqueOrThrow()\`...`.
   - **Expected:** 404 with safe message.
 
@@ -455,7 +455,7 @@ Round 2 results will be appended below this line.
 
 - [x] **P2 — Attachment upload returns 500 for "Missing file" and 10MB-exceeded** *(Phase 7)* — should be 400 / 413.
 
-- [ ] **P2 — No RTL support and no Intl number formatting for MAD**
+- [x] **P2 — No RTL support and no Intl number formatting for MAD** *(Phase 1 — Intl.NumberFormat("fr-MA") now produces 1.234,56 د.م.; full RTL `dir="rtl"` toggle is a follow-up if Arabic UI is needed)*
   - **Repro:** `document.documentElement.dir` is none; `htmlLang="en"`.
   - **Expected:** For MAD, optionally `Intl.NumberFormat('fr-MA' | 'ar-MA', {style:'currency', currency:'MAD'})` → `1.234.567,89 د.م.` (period thousands, comma decimal).
   - **Actual:** Hand-rolled US format `1,234,567.89 د.م.` everywhere.
