@@ -3,6 +3,7 @@ import { ReceivableForm } from "@/components/app/receivable-form";
 import { ReceivablePaymentForm } from "@/components/app/receivable-payment-form";
 import { MetricCard } from "@/components/app/metric-card";
 import { PageHeader } from "@/components/app/page-header";
+import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
@@ -54,7 +55,10 @@ export default async function ReceivablesPage() {
                         {item.dueDate ? ` · ${Math.max(0, differenceInCalendarDays(new Date(), item.dueDate))} days aged` : ""}
                       </p>
                     </div>
-                    <p className="text-sm font-semibold">{formatMoney(remaining, item.currency)}</p>
+                    <div className="flex items-start gap-2">
+                      <p className="text-sm font-semibold">{formatMoney(remaining, item.currency)}</p>
+                      <RowActions id={item.id} resource="receivables" />
+                    </div>
                   </div>
                   {!["PAID", "CANCELLED"].includes(status) ? <ReceivablePaymentForm receivableId={item.id} /> : null}
                 </div>

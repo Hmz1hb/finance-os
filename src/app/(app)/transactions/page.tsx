@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/app/page-header";
 import { ReceiptUpload } from "@/components/app/receipt-upload";
 import { TransactionForm } from "@/components/app/transaction-form";
+import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { formatMad } from "@/lib/finance/money";
@@ -39,7 +40,7 @@ export default async function TransactionsPage() {
           </CardHeader>
           <div className="space-y-2">
             {transactions.map((transaction) => (
-              <div key={transaction.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-md bg-surface-inset p-3">
+              <div key={transaction.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-3 rounded-md bg-surface-inset p-3">
                 <div>
                   <p className="text-sm font-medium">{transaction.description}</p>
                   <p className="text-xs text-muted-ledger">
@@ -49,6 +50,7 @@ export default async function TransactionsPage() {
                 <p className={transaction.kind === "INCOME" ? "text-sm font-semibold text-green-income" : "text-sm font-semibold text-red-risk"}>
                   {formatMad(transaction.madEquivalentCents)}
                 </p>
+                <RowActions id={transaction.id} resource="transactions" />
               </div>
             ))}
             {transactions.length === 0 ? <p className="text-sm text-muted-ledger">No transactions yet.</p> : null}

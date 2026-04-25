@@ -1,6 +1,7 @@
 import { OwnerCompensationForm } from "@/components/app/owner-compensation-form";
 import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
+import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { formatMad } from "@/lib/finance/money";
@@ -38,7 +39,10 @@ export default async function PayrollPage() {
               <div key={payment.id} className="rounded-md bg-surface-inset p-3">
                 <div className="flex justify-between gap-3">
                   <p className="text-sm font-medium">{payment.paymentType}</p>
-                  <p className="text-sm font-semibold">{formatMad(payment.madEquivalentCents)}</p>
+                  <div className="flex items-start gap-2">
+                    <p className="text-sm font-semibold">{formatMad(payment.madEquivalentCents)}</p>
+                    <RowActions id={payment.id} resource="owner-pay" />
+                  </div>
                 </div>
                 <p className="text-xs text-muted-ledger">{payment.fromEntity.name} to {payment.toEntity.name} · {payment.date.toISOString().slice(0, 10)}</p>
                 {payment.taxTreatment ? <p className="mt-2 text-xs text-muted-ledger">{payment.taxTreatment}</p> : null}

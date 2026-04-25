@@ -1,4 +1,6 @@
+import { CategoryForm } from "@/components/app/category-form";
 import { PageHeader } from "@/components/app/page-header";
+import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 
@@ -9,12 +11,26 @@ export default async function CategoriesPage() {
   return (
     <>
       <PageHeader title="Categories" description="Customizable income and expense taxonomy across personal, business, and shared finances." badge="Taxonomy" />
-      <Card>
-        <CardHeader><CardTitle>{categories.length} categories</CardTitle></CardHeader>
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {categories.map((category) => <div key={category.id} className="rounded-md bg-surface-inset p-3"><p className="text-sm font-medium">{category.name}</p><p className="text-xs text-muted-ledger">{category.context} · {category.type}</p></div>)}
-        </div>
-      </Card>
+      <section className="grid gap-4 xl:grid-cols-[0.7fr_1.3fr]">
+        <Card>
+          <CardHeader><CardTitle>New category</CardTitle></CardHeader>
+          <CategoryForm />
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>{categories.length} categories</CardTitle></CardHeader>
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {categories.map((category) => (
+              <div key={category.id} className="flex items-start justify-between gap-2 rounded-md bg-surface-inset p-3">
+                <div>
+                  <p className="text-sm font-medium">{category.name}</p>
+                  <p className="text-xs text-muted-ledger">{category.context} · {category.type}{category.isSystem ? " · system" : ""}</p>
+                </div>
+                {category.isSystem ? null : <RowActions id={category.id} resource="categories" />}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </section>
     </>
   );
 }

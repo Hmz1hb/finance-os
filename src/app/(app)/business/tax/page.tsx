@@ -1,8 +1,10 @@
 import { Landmark, Scale } from "lucide-react";
+import type { Currency } from "@prisma/client";
 import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaxReserveButton } from "@/components/app/tax-reserve-button";
+import { TaxRulesPanel } from "@/components/app/tax-rules-panel";
 import { prisma } from "@/lib/server/db";
 import { taxCockpit } from "@/lib/server/tax";
 import { formatMoney } from "@/lib/finance/money";
@@ -54,13 +56,18 @@ export default async function TaxPage() {
         <Card>
           <CardHeader><CardTitle>Editable rule assumptions</CardTitle></CardHeader>
           <div className="space-y-2">
-            {profiles.map((profile) => (
-              <div key={profile.id} className="rounded-md bg-surface-inset p-3">
-                <p className="text-sm font-medium">{profile.name}</p>
-                <p className="text-xs text-muted-ledger">{profile.entity.name} · effective {profile.effectiveFrom.toISOString().slice(0, 10)}</p>
-                <pre className="mt-2 max-h-36 overflow-auto rounded bg-background/60 p-2 text-[11px] text-muted-ledger">{JSON.stringify(profile.rules, null, 2)}</pre>
-              </div>
-            ))}
+            {profiles.map((profile) => {
+              const currency: Currency = profile.entity.slug === "uk_ltd" ? "GBP" : "MAD";
+              return (
+                <div key={profile.id} className="rounded-md bg-surface-inset p-3">
+                  <p className="text-sm font-medium">{profile.name}</p>
+                  <p className="text-xs text-muted-ledger">{profile.entity.name} · effective {profile.effectiveFrom.toISOString().slice(0, 10)}</p>
+                  <div className="mt-2">
+                    <TaxRulesPanel rules={profile.rules} currency={currency} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       </section>
@@ -85,7 +92,6 @@ type EstimateView = {
 };
 
 function EstimateCard({ title, estimate }: { title: string; estimate: EstimateView | null }) {
-  const assumptions = estimate?.assumptions as Record<string, unknown> | undefined;
   return (
     <Card>
       <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
@@ -96,7 +102,9 @@ function EstimateCard({ title, estimate }: { title: string; estimate: EstimateVi
             <MetricCard label="Tax estimate" value={formatMoney(estimate.estimatedTaxCents, estimate.currency)} tone="risk" />
             <MetricCard label="Reserve" value={formatMoney(estimate.reserveCents, estimate.currency)} tone="deadline" />
           </div>
-          <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-surface-inset p-3 text-xs text-muted-ledger">{JSON.stringify(assumptions, null, 2)}</pre>
+          <div className="mt-4 rounded-md bg-surface-inset p-3">
+            <TaxRulesPanel rules={estimate.assumptions} currency={estimate.currency} title="Assumptions" />
+          </div>
         </>
       ) : (
         <p className="text-sm text-muted-ledger">Estimate unavailable until the database is reachable.</p>

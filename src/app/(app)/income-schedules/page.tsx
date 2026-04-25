@@ -1,6 +1,7 @@
 import { RecurringRuleType } from "@prisma/client";
 import { IncomeScheduleForm } from "@/components/app/income-schedule-form";
 import { PageHeader } from "@/components/app/page-header";
+import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
@@ -38,7 +39,10 @@ export default async function IncomeSchedulesPage() {
               <div key={item.id} className="rounded-md bg-surface-inset p-3">
                 <div className="flex justify-between gap-3">
                   <p className="text-sm font-medium">{item.description}</p>
-                  <p className="text-sm font-semibold text-green-income">{formatMad(item.madEquivalentCents)}</p>
+                  <div className="flex items-start gap-2">
+                    <p className="text-sm font-semibold text-green-income">{formatMad(item.madEquivalentCents)}</p>
+                    <RowActions id={item.id} resource="expected-income" />
+                  </div>
                 </div>
                 <p className="text-xs text-muted-ledger">{item.entity.name} · due {item.dueDate.toISOString().slice(0, 10)} · {item.counterparty ?? "No counterparty"}</p>
               </div>
@@ -54,7 +58,10 @@ export default async function IncomeSchedulesPage() {
             <div key={rule.id} className="rounded-md bg-surface-inset p-3">
               <div className="flex justify-between gap-3">
                 <p className="text-sm font-medium">{rule.title}</p>
-                <p className="text-sm font-semibold">{formatMoney(rule.amountCents, rule.currency)}</p>
+                <div className="flex items-start gap-2">
+                  <p className="text-sm font-semibold">{formatMoney(rule.amountCents, rule.currency)}</p>
+                  <RowActions id={rule.id} resource="recurring-rules" />
+                </div>
               </div>
               <p className="text-xs text-muted-ledger">{rule.entity.name} · {rule.cadence} · next {rule.nextDueDate.toISOString().slice(0, 10)}</p>
             </div>
