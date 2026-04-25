@@ -52,9 +52,23 @@ export function contextForEntityType(type: FinancialEntityType): ContextMode {
   return type === "UK_LTD" ? "BUSINESS" : "PERSONAL";
 }
 
+const KNOWN_ENTITY_IDS = new Set([UK_LTD_ENTITY_ID, MOROCCO_PERSONAL_ENTITY_ID]);
+
+export type EntityIdSearchResult =
+  | { kind: "combined" }
+  | { kind: "valid"; entityId: string }
+  | { kind: "invalid"; raw: string };
+
 export function entityIdFromSearch(value?: string | null) {
   if (!value || value === "combined") return undefined;
-  return value;
+  if (KNOWN_ENTITY_IDS.has(value)) return value;
+  return undefined;
+}
+
+export function resolveEntityFromSearch(value?: string | null): EntityIdSearchResult {
+  if (!value || value === "combined") return { kind: "combined" };
+  if (KNOWN_ENTITY_IDS.has(value)) return { kind: "valid", entityId: value };
+  return { kind: "invalid", raw: value };
 }
 
 export function entityLabel(entity?: Pick<FinancialEntity, "name"> | null) {

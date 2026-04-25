@@ -12,12 +12,37 @@ async function passwordMatches(input: string, expected: string) {
   if (expected.startsWith("$2a$") || expected.startsWith("$2b$") || expected.startsWith("$2y$")) {
     return compare(input, expected);
   }
-  return input === expected;
+  console.error(
+    "[auth] ADMIN_PASSWORD is not bcrypt-hashed. Generate one with `bcryptjs.hash(\"<password>\", 10)` and store the hash in the env. Login is rejected until this is fixed.",
+  );
+  return false;
 }
+
+const isProduction = process.env.NODE_ENV === "production";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
+  cookies: {
+    sessionToken: {
+      name: isProduction ? "__Secure-authjs.session-token" : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+    csrfToken: {
+      name: isProduction ? "__Host-authjs.csrf-token" : "authjs.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+  },
   pages: {
     signIn: "/login",
   },

@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/db";
 import { uploadReceiptObject, attachmentTypeFromContentType } from "@/lib/server/aws";
-import { jsonError, requireSession } from "@/lib/server/http";
+import { HttpError, jsonError, requireSession } from "@/lib/server/http";
+
+const MAX_BYTES = 10 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
     const form = await request.formData();
     const file = form.get("file");
-    if (!(file instanceof File)) throw new Error("Missing file");
-    if (file.size > 10 * 1024 * 1024) throw new Error("Max file size is 10MB");
+    if (!(file instanceof File)) throw new HttpError(400, "Missing file");
+    if (file.size > MAX_BYTES) throw new HttpError(413, "File exceeds 10MB limit");
 
     const transactionId = String(form.get("transactionId") ?? "") || null;
     const buffer = Buffer.from(await file.arrayBuffer());

@@ -4,14 +4,30 @@ import { MetricCard } from "@/components/app/metric-card";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { cockpitSummary } from "@/lib/server/cockpit";
-import { entityIdFromSearch, entityLabel } from "@/lib/server/entities";
+import { entityLabel, resolveEntityFromSearch } from "@/lib/server/entities";
 import { formatMad, formatMoney } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ entity?: string }> }) {
   const params = await searchParams;
-  const entityId = entityIdFromSearch(params.entity);
+  const resolved = resolveEntityFromSearch(params.entity);
+
+  if (resolved.kind === "invalid") {
+    return (
+      <>
+        <PageHeader title="Unknown entity" description={`The entity "${resolved.raw}" does not exist. Pick one from the rail above or switch to Combined.`} badge="Not found" />
+        <Card>
+          <p className="text-sm text-muted-ledger">
+            Use the EntityRail to pick a valid entity, or visit{" "}
+            <Link href="/dashboard?entity=combined" className="text-blue-ledger underline">/dashboard?entity=combined</Link>.
+          </p>
+        </Card>
+      </>
+    );
+  }
+
+  const entityId = resolved.kind === "valid" ? resolved.entityId : undefined;
   const summary = await cockpitSummary(entityId).catch(() => null);
   const activeEntity = entityId ? summary?.entities.find((entity) => entity.id === entityId) : null;
 
