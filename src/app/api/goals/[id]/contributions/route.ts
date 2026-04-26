@@ -21,6 +21,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const amountCents = toCents(parsed.amount);
     if (amountCents === 0) throw new HttpError(400, "Contribution amount must be non-zero");
 
+    const remainingCents = Math.max(0, goal.targetAmountCents - goal.currentSavedCents);
+    if (amountCents > remainingCents) {
+      throw new HttpError(400, `Contribution exceeds remaining target (${remainingCents} cents remaining)`);
+    }
+
     const rate = await getMadRate(goal.currency);
     const madEquivalentCents = Math.round(amountCents * rate);
 
