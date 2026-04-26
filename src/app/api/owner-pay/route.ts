@@ -4,14 +4,11 @@ import { Currency, OwnerCompensationType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 import { createOwnerCompensation } from "@/lib/server/owner-pay";
+import { positiveAmount } from "@/lib/server/schemas";
 
 const schema = z.object({
   date: z.coerce.date(),
-  amount: z
-    .union([z.string(), z.number()])
-    .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
-      message: "Amount must be greater than 0",
-    }),
+  amount: positiveAmount,
   currency: z.enum(Currency),
   paymentType: z.enum(OwnerCompensationType),
   taxTreatment: z.string().optional().nullable(),

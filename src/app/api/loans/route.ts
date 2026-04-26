@@ -4,12 +4,11 @@ import { Currency, LoanKind } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
-
-const positiveAmount = z
-  .union([z.string(), z.number()])
-  .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
-    message: "Must be greater than 0",
-  });
+import {
+  interestRate,
+  loanDateRefinement,
+  positiveAmount,
+} from "@/lib/server/schemas";
 
 const schema = z
   .object({
@@ -17,7 +16,7 @@ const schema = z
     lenderName: z.string().min(1),
     originalAmount: positiveAmount,
     currency: z.enum(Currency),
-    interestRate: z.coerce.number().min(0).max(1, "Use a decimal rate (0.05 = 5%)").default(0),
+    interestRate: interestRate.default(0),
     monthlyPayment: positiveAmount,
     startDate: z.coerce.date(),
     expectedPayoffDate: z.coerce.date().optional().nullable(),
@@ -25,15 +24,7 @@ const schema = z
     entityId: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
   })
-  .superRefine((value, ctx) => {
-    if (value.expectedPayoffDate && value.expectedPayoffDate <= value.startDate) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["expectedPayoffDate"],
-        message: "Expected payoff date must be after start date",
-      });
-    }
-  });
+  .superRefine(loanDateRefinement);
 
 export async function GET() {
   try {

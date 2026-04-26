@@ -4,23 +4,26 @@ import { Currency, RecurringCadence, RecurringRuleType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { HttpError, jsonError, parseJson, requireSession } from "@/lib/server/http";
+import { positiveAmountOptional, recurringRuleRefinement } from "@/lib/server/schemas";
 
-const patchSchema = z.object({
-  title: z.string().min(1).optional(),
-  ruleType: z.enum(RecurringRuleType).optional(),
-  cadence: z.enum(RecurringCadence).optional(),
-  intervalDays: z.coerce.number().int().positive().optional().nullable(),
-  dayOfMonth: z.coerce.number().int().min(1).max(31).optional().nullable(),
-  secondDayOfMonth: z.coerce.number().int().min(1).max(31).optional().nullable(),
-  startDate: z.coerce.date().optional(),
-  endDate: z.coerce.date().optional().nullable(),
-  nextDueDate: z.coerce.date().optional(),
-  amount: z.union([z.string(), z.number()]).optional(),
-  currency: z.enum(Currency).optional(),
-  counterparty: z.string().optional().nullable(),
-  autoCreate: z.coerce.boolean().optional(),
-  notes: z.string().optional().nullable(),
-});
+const patchSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    ruleType: z.enum(RecurringRuleType).optional(),
+    cadence: z.enum(RecurringCadence).optional(),
+    intervalDays: z.coerce.number().int().positive().optional().nullable(),
+    dayOfMonth: z.coerce.number().int().min(1).max(31).optional().nullable(),
+    secondDayOfMonth: z.coerce.number().int().min(1).max(31).optional().nullable(),
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional().nullable(),
+    nextDueDate: z.coerce.date().optional(),
+    amount: positiveAmountOptional,
+    currency: z.enum(Currency).optional(),
+    counterparty: z.string().optional().nullable(),
+    autoCreate: z.coerce.boolean().optional(),
+    notes: z.string().optional().nullable(),
+  })
+  .superRefine(recurringRuleRefinement);
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {

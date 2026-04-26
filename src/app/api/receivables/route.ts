@@ -4,6 +4,7 @@ import { Currency, ReceivableKind } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 import { createReceivable, receivableStatus } from "@/lib/server/cashflows";
+import { positiveAmount } from "@/lib/server/schemas";
 
 const schema = z.object({
   entityId: z.string().min(1),
@@ -12,11 +13,7 @@ const schema = z.object({
   title: z.string().min(1),
   issueDate: z.coerce.date(),
   dueDate: z.coerce.date().optional().nullable(),
-  amount: z
-    .union([z.string(), z.number()])
-    .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
-      message: "Amount must be greater than 0",
-    }),
+  amount: positiveAmount,
   currency: z.enum(Currency),
   source: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),

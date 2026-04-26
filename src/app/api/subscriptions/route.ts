@@ -5,15 +5,12 @@ import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { getMadRate } from "@/lib/server/rates";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
+import { positiveAmount } from "@/lib/server/schemas";
 
 const schema = z.object({
   name: z.string().min(1),
   context: z.enum(ContextMode),
-  amount: z
-    .union([z.string(), z.number()])
-    .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
-      message: "Amount must be greater than 0",
-    }),
+  amount: positiveAmount,
   currency: z.enum(Currency),
   billingCycle: z.enum(RecurrenceFrequency),
   nextBillingDate: z.coerce.date(),

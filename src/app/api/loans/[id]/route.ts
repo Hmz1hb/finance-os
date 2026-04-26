@@ -4,20 +4,27 @@ import { Currency, LoanKind } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { HttpError, jsonError, parseJson, requireSession } from "@/lib/server/http";
+import {
+  interestRateOptional,
+  loanDateRefinement,
+  positiveAmountOptional,
+} from "@/lib/server/schemas";
 
-const patchSchema = z.object({
-  kind: z.enum(LoanKind).optional(),
-  lenderName: z.string().min(1).optional(),
-  originalAmount: z.union([z.string(), z.number()]).optional(),
-  currency: z.enum(Currency).optional(),
-  interestRate: z.coerce.number().min(0).optional(),
-  monthlyPayment: z.union([z.string(), z.number()]).optional(),
-  startDate: z.coerce.date().optional(),
-  expectedPayoffDate: z.coerce.date().optional().nullable(),
-  remainingBalance: z.union([z.string(), z.number()]).optional(),
-  entityId: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-});
+const patchSchema = z
+  .object({
+    kind: z.enum(LoanKind).optional(),
+    lenderName: z.string().min(1).optional(),
+    originalAmount: positiveAmountOptional,
+    currency: z.enum(Currency).optional(),
+    interestRate: interestRateOptional,
+    monthlyPayment: positiveAmountOptional,
+    startDate: z.coerce.date().optional(),
+    expectedPayoffDate: z.coerce.date().optional().nullable(),
+    remainingBalance: positiveAmountOptional,
+    entityId: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  })
+  .superRefine(loanDateRefinement);
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {

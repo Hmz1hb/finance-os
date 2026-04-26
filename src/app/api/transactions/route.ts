@@ -7,8 +7,8 @@ import { toCents } from "@/lib/finance/money";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 import { getMadRate } from "@/lib/server/rates";
 import { MOROCCO_PERSONAL_ENTITY_ID, UK_LTD_ENTITY_ID } from "@/lib/server/entities";
+import { positiveAmount } from "@/lib/server/schemas";
 
-const MAX_AMOUNT_CENTS = 1_000_000_000_000;
 const MIN_DATE = new Date("1970-01-01T00:00:00.000Z");
 const IDEMPOTENCY_TTL_MS = 60_000;
 const idempotencyCache = new Map<string, { transactionId: string; expiresAt: number }>();
@@ -18,13 +18,6 @@ function reapIdempotency(now: number) {
     if (value.expiresAt < now) idempotencyCache.delete(key);
   }
 }
-
-const positiveAmount = z
-  .union([z.string(), z.number()])
-  .refine((value) => {
-    const numeric = Number(typeof value === "string" ? value.replace(/,/g, "") : value);
-    return Number.isFinite(numeric) && numeric > 0 && Math.round(numeric * 100) < MAX_AMOUNT_CENTS;
-  }, { message: "Amount must be > 0 and within reasonable bounds" });
 
 const transactionSchema = z.object({
   date: z.coerce

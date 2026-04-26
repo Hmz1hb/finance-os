@@ -4,12 +4,16 @@ import { Currency, GoalCategory } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { HttpError, jsonError, parseJson, requireSession } from "@/lib/server/http";
+import {
+  nonNegativeAmountOptional,
+  positiveAmountOptional,
+} from "@/lib/server/schemas";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
-  targetAmount: z.union([z.string(), z.number()]).optional(),
+  targetAmount: positiveAmountOptional,
   currency: z.enum(Currency).optional(),
-  currentSaved: z.union([z.string(), z.number()]).optional(),
+  currentSaved: nonNegativeAmountOptional,
   targetDate: z.coerce.date().optional().nullable(),
   priority: z.coerce.number().int().min(1).max(5).optional(),
   category: z.enum(GoalCategory).optional(),

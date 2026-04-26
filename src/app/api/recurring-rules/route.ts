@@ -4,6 +4,7 @@ import { Currency, RecurringCadence, RecurringRuleType } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
 import { createRecurringRule } from "@/lib/server/cashflows";
+import { positiveAmount, recurringRuleRefinement } from "@/lib/server/schemas";
 
 const schema = z
   .object({
@@ -16,30 +17,13 @@ const schema = z
     secondDayOfMonth: z.coerce.number().int().min(1).max(31).optional().nullable(),
     startDate: z.coerce.date(),
     endDate: z.coerce.date().optional().nullable(),
-    amount: z
-      .union([z.string(), z.number()])
-      .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
-        message: "Amount must be greater than 0",
-      }),
+    amount: positiveAmount,
     currency: z.enum(Currency),
     counterparty: z.string().optional().nullable(),
     autoCreate: z.coerce.boolean().default(false),
     notes: z.string().optional().nullable(),
   })
-  .superRefine((value, ctx) => {
-    if (value.cadence === "INTERVAL_DAYS" && !value.intervalDays) {
-      ctx.addIssue({ code: "custom", path: ["intervalDays"], message: "intervalDays required for INTERVAL_DAYS cadence" });
-    }
-    if ((value.cadence === "MONTHLY_DAY" || value.cadence === "SEMI_MONTHLY") && !value.dayOfMonth) {
-      ctx.addIssue({ code: "custom", path: ["dayOfMonth"], message: "dayOfMonth required for monthly cadences" });
-    }
-    if (value.cadence === "SEMI_MONTHLY" && !value.secondDayOfMonth) {
-      ctx.addIssue({ code: "custom", path: ["secondDayOfMonth"], message: "secondDayOfMonth required for SEMI_MONTHLY cadence" });
-    }
-    if (value.endDate && value.endDate <= value.startDate) {
-      ctx.addIssue({ code: "custom", path: ["endDate"], message: "endDate must be after startDate" });
-    }
-  });
+  .superRefine(recurringRuleRefinement);
 
 export async function GET(request: NextRequest) {
   try {

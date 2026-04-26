@@ -4,24 +4,13 @@ import { Currency, GoalCategory } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
+import { nonNegativeAmountOptional, positiveAmount } from "@/lib/server/schemas";
 
 const schema = z.object({
   name: z.string().min(1),
-  targetAmount: z
-    .union([z.string(), z.number()])
-    .refine((value) => Number(typeof value === "string" ? value.replace(/,/g, "") : value) > 0, {
-      message: "Target amount must be greater than 0",
-    }),
+  targetAmount: positiveAmount,
   currency: z.enum(Currency),
-  currentSaved: z
-    .union([z.string(), z.number()])
-    .optional()
-    .refine(
-      (value) =>
-        value === undefined ||
-        Number(typeof value === "string" ? value.replace(/,/g, "") : value) >= 0,
-      { message: "Saved amount must be >= 0" },
-    ),
+  currentSaved: nonNegativeAmountOptional,
   targetDate: z.coerce.date().optional().nullable(),
   priority: z.coerce.number().int().min(1).max(5).default(3),
   category: z.enum(GoalCategory),

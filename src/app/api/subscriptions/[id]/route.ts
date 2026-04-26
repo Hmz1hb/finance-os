@@ -5,11 +5,12 @@ import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { getMadRate } from "@/lib/server/rates";
 import { HttpError, jsonError, parseJson, requireSession } from "@/lib/server/http";
+import { positiveAmountOptional } from "@/lib/server/schemas";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
   context: z.enum(ContextMode).optional(),
-  amount: z.union([z.string(), z.number()]).optional(),
+  amount: positiveAmountOptional,
   currency: z.enum(Currency).optional(),
   billingCycle: z.enum(RecurrenceFrequency).optional(),
   nextBillingDate: z.coerce.date().optional(),
