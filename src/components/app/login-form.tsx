@@ -33,7 +33,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} method="post" action="/login" className="space-y-4">
       <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-ledger/15 text-blue-ledger-fg">
         <LockKeyhole className="h-6 w-6" />
       </div>

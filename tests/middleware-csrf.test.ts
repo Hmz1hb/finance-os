@@ -13,7 +13,7 @@ vi.mock("../auth", () => ({
   },
 }));
 
-import middleware from "../middleware";
+import proxy from "../src/proxy";
 
 function makeRequest(init: { method: string; contentType?: string; path?: string; origin?: string; host?: string }) {
   const url = `http://localhost:3000${init.path ?? "/api/transactions"}`;
@@ -24,13 +24,13 @@ function makeRequest(init: { method: string; contentType?: string; path?: string
   return new NextRequest(url, { method: init.method, headers });
 }
 
-describe("middleware CSRF / content-type guard", () => {
+describe("proxy CSRF / content-type guard", () => {
   it("rejects text/plain POST to /api/transactions with 415", async () => {
     const req = makeRequest({ method: "POST", contentType: "text/plain" });
     // Pass a fake authenticated session so we get past the auth gate
     // and reach the content-type check.
     const session = { user: { id: "test-user" } };
-    const res = await (middleware as unknown as (r: NextRequest, a: unknown) => Promise<Response>)(req, session);
+    const res = await (proxy as unknown as (r: NextRequest, a: unknown) => Promise<Response>)(req, session);
     expect(res).toBeDefined();
     expect(res!.status).toBe(415);
     const body = await res!.json();
@@ -40,7 +40,7 @@ describe("middleware CSRF / content-type guard", () => {
   it("accepts application/json POST and lets it through (no 415)", async () => {
     const req = makeRequest({ method: "POST", contentType: "application/json" });
     const session = { user: { id: "test-user" } };
-    const res = await (middleware as unknown as (r: NextRequest, a: unknown) => Promise<Response | undefined>)(req, session);
+    const res = await (proxy as unknown as (r: NextRequest, a: unknown) => Promise<Response | undefined>)(req, session);
     // Either undefined (pass through) or NOT 415.
     if (res) expect(res.status).not.toBe(415);
   });
@@ -48,14 +48,14 @@ describe("middleware CSRF / content-type guard", () => {
   it("accepts multipart/form-data POST (file upload) without 415", async () => {
     const req = makeRequest({ method: "POST", contentType: "multipart/form-data; boundary=----x" });
     const session = { user: { id: "test-user" } };
-    const res = await (middleware as unknown as (r: NextRequest, a: unknown) => Promise<Response | undefined>)(req, session);
+    const res = await (proxy as unknown as (r: NextRequest, a: unknown) => Promise<Response | undefined>)(req, session);
     if (res) expect(res.status).not.toBe(415);
   });
 
   it("does not gate GET on content-type", async () => {
     const req = makeRequest({ method: "GET" });
     const session = { user: { id: "test-user" } };
-    const res = await (middleware as unknown as (r: NextRequest, a: unknown) => Promise<Response | undefined>)(req, session);
+    const res = await (proxy as unknown as (r: NextRequest, a: unknown) => Promise<Response | undefined>)(req, session);
     if (res) expect(res.status).not.toBe(415);
   });
 });

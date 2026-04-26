@@ -38,6 +38,15 @@ type Props = {
 
 const PAGE_SIZE = 50;
 
+// Format an ISO date string as YYYY-MM-DD in the *browser's* local time zone.
+// `Intl.DateTimeFormat` defaults `timeZone` to the resolved local zone, so
+// `2026-03-28T23:00:00Z` (which is 2026-03-29 00:00 in Africa/Casablanca)
+// renders as "2026-03-29" instead of the UTC slice's "2026-03-28".
+const ymdFormatter = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+function formatLocalYmd(iso: string) {
+  return ymdFormatter.format(new Date(iso));
+}
+
 export function TransactionsLedger({ initial, initialNextCursor, categories, entities }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<LedgerTransaction[]>(initial);
@@ -129,7 +138,7 @@ export function TransactionsLedger({ initial, initialNextCursor, categories, ent
                   ) : null}
                 </p>
                 <p className="text-xs text-muted-ledger">
-                  {transaction.date.slice(0, 10)} · {transaction.entity?.name ?? transaction.context} · {transaction.category?.name ?? "Uncategorized"}
+                  {formatLocalYmd(transaction.date)} · {transaction.entity?.name ?? transaction.context} · {transaction.category?.name ?? "Uncategorized"}
                 </p>
               </div>
               <p className={transaction.kind === "INCOME" ? "text-sm font-semibold text-green-income" : "text-sm font-semibold text-red-risk"}>

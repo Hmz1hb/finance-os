@@ -12,12 +12,12 @@ vi.mock("../auth", () => ({
   },
 }));
 
-let middleware: typeof import("../middleware").default;
+let proxy: typeof import("../src/proxy").default;
 
 beforeEach(async () => {
   // Reset module state so the in-memory rate buckets are cleared between tests.
   vi.resetModules();
-  middleware = (await import("../middleware")).default;
+  proxy = (await import("../src/proxy")).default;
 });
 
 function makeWriteRequest(userId: string, path = "/api/transactions") {
@@ -42,10 +42,10 @@ function makeLoginRequest(ip: string) {
 
 type Handler = (req: NextRequest, auth: unknown) => Promise<Response | undefined>;
 
-describe("middleware rate limit on /api/transactions", () => {
+describe("proxy rate limit on /api/transactions", () => {
   it("allows up to RATE_LIMIT_MAX_WRITES (30) writes then 429s the next", async () => {
     const session = { user: { id: "rate-user-1" } };
-    const handler = middleware as unknown as Handler;
+    const handler = proxy as unknown as Handler;
 
     // 30 should pass the rate-limit gate (status !== 429)
     for (let i = 0; i < 30; i++) {
@@ -63,9 +63,9 @@ describe("middleware rate limit on /api/transactions", () => {
   });
 });
 
-describe("middleware login rate limit on /api/auth/callback/credentials", () => {
+describe("proxy login rate limit on /api/auth/callback/credentials", () => {
   it("allows 10 attempts per IP then 429s the 11th", async () => {
-    const handler = middleware as unknown as Handler;
+    const handler = proxy as unknown as Handler;
     const ip = "203.0.113.42";
 
     for (let i = 0; i < 10; i++) {

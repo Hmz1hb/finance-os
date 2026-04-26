@@ -57,14 +57,16 @@ export async function GET(request: NextRequest) {
     const entityId = params.get("entityId");
     const cursor = params.get("cursor");
     const q = params.get("q")?.trim();
-    const limitParam = Number(params.get("limit"));
+    const limitRaw = params.get("limit");
+    const limitParam = limitRaw !== null ? Number(limitRaw) : NaN;
     const yearParam = params.get("year");
 
     // Cursor-paginated mode: when `cursor`, `limit`, or `q` is present we switch
     // off the legacy "give me a whole year up to 300 rows" envelope and return
-    // `{ data, nextCursor }` instead. This unblocks the /transactions UI from
-    // its old 80-row truncation while keeping existing year-bucket callers happy.
-    const usePagination = cursor !== null || q !== undefined || Number.isFinite(limitParam);
+    // `{ data, nextCursor }` instead. The `limitRaw` check is intentional —
+    // `Number(null)` is 0 (a finite number), so checking finiteness alone would
+    // flip every legacy `?year=` caller to the envelope.
+    const usePagination = cursor !== null || q !== undefined || (limitRaw !== null && Number.isFinite(limitParam));
     if (usePagination) {
       const limit = Math.min(Math.max(Number.isFinite(limitParam) ? limitParam : 50, 1), 100);
       const where: Prisma.TransactionWhereInput = {
