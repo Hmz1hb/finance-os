@@ -55,8 +55,16 @@ export async function POST(request: NextRequest) {
     const madEquivalentCents = Math.round(amountCents * rate);
     const groupId = crypto.randomUUID();
 
-    const [businessExpense, personalIncome] = await prisma.$transaction([
-      prisma.transaction.create({
+    // Wallet partial-write rollback (Cluster F): all four writes — the balanced
+    // EXPENSE + INCOME transactions, the payrollPerson upsert, and the
+    // payrollPayment row — must be one atomic unit. The previous code wrapped
+    // only steps 1-2 in `$transaction([...])` and ran steps 3-4 as bare
+    // `prisma.<model>` calls afterwards, so a step-3/4 failure left the
+    // balanced transaction rows committed and the Combined wallet card
+    // (cockpit.ts cashBalanceCents) reflected the half-write as a real change.
+    // The interactive form below rolls every step back on any thrown error.
+    const result = await prisma.$transaction(async (tx) => {
+      const businessExpense = await tx.transaction.create({
         data: {
           entityId: fromEntity.id,
           date: parsed.date,
@@ -72,8 +80,9 @@ export async function POST(request: NextRequest) {
           transactionGroupId: groupId,
           notes: parsed.notes,
         },
-      }),
-      prisma.transaction.create({
+      });
+
+      const personalIncome = await tx.transaction.create({
         data: {
           entityId: toEntity.id,
           date: parsed.date,
@@ -89,39 +98,41 @@ export async function POST(request: NextRequest) {
           transactionGroupId: groupId,
           notes: parsed.notes,
         },
-      }),
-    ]);
+      });
 
-    const self = await prisma.payrollPerson.upsert({
-      where: { id: "self" },
-      create: {
-        id: "self",
-        name: "Owner",
-        role: "Founder",
-        paymentFrequency: "MONTHLY",
-        rateCents: 0,
-        currency: parsed.currency,
-        isSelf: true,
-      },
-      update: { isSelf: true },
+      const self = await tx.payrollPerson.upsert({
+        where: { id: "self" },
+        create: {
+          id: "self",
+          name: "Owner",
+          role: "Founder",
+          paymentFrequency: "MONTHLY",
+          rateCents: 0,
+          currency: parsed.currency,
+          isSelf: true,
+        },
+        update: { isSelf: true },
+      });
+
+      const payment = await tx.payrollPayment.create({
+        data: {
+          personId: self.id,
+          date: parsed.date,
+          amountCents,
+          currency: parsed.currency,
+          exchangeRateSnapshot: rate,
+          madEquivalentCents,
+          paymentType: parsed.paymentType,
+          businessTransactionId: businessExpense.id,
+          personalTransactionId: personalIncome.id,
+          notes: parsed.notes,
+        },
+      });
+
+      return { payment, businessExpense, personalIncome };
     });
 
-    const payment = await prisma.payrollPayment.create({
-      data: {
-        personId: self.id,
-        date: parsed.date,
-        amountCents,
-        currency: parsed.currency,
-        exchangeRateSnapshot: rate,
-        madEquivalentCents,
-        paymentType: parsed.paymentType,
-        businessTransactionId: businessExpense.id,
-        personalTransactionId: personalIncome.id,
-        notes: parsed.notes,
-      },
-    });
-
-    return NextResponse.json({ payment, businessExpense, personalIncome });
+    return NextResponse.json(result);
   } catch (error) {
     return jsonError(error);
   }
