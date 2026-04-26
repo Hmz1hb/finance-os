@@ -1352,7 +1352,7 @@ The R6 post-mortem ("a code-read is not a live verification") drove this round's
 
 ## Round 8 — closed
 
-- [x] **P3 — [TEST-AGENT-R6-NCOV-DUP-RULE] "Azlotv LLC" recurring rule appears duplicated** *(Fix 2026-04-26 — added a partial unique index `RecurringRule_entityId_title_cadence_active_uq ON "RecurringRule"("entityId","title","cadence") WHERE "deletedAt" IS NULL` via `prisma/migrations/002_recurring_rule_unique/migration.sql`. SQL-only because Prisma DSL can't express partial uniqueness; the migration is the source of truth and runtime violations surface as P2002 through the existing `jsonError` envelope. Prod data cleanup: deleted the 0-children SEMI_MONTHLY orphan `cmoe2swug00011np6dmyyq62z` (created 08:27Z), keeping `cmoe3m2mz000i1moa4y9tpsnd` (1 child) and the distinct INTERVAL_DAYS rule `cmoe3jfz6000g1moa3gett8tc` (1 child).)*
+- [x] **P3 — [TEST-AGENT-R6-NCOV-DUP-RULE] "Azlotv LLC" recurring rule appears duplicated** ✓ R8-verified 2026-04-26 — post-deploy `aws ssm` into EC2 + `psql -c "\d \"RecurringRule\""` shows index `RecurringRule_entityId_title_cadence_active_uq UNIQUE, btree ("entityId", title, cadence) WHERE "deletedAt" IS NULL` live; `_prisma_migrations` table records `002_recurring_rule_unique` finished `2026-04-26 13:42:42 UTC`. Constraint trip-test: `POST /api/recurring-rules` with the same `{entityId:"uk_ltd", title:"Azlotv LLC", cadence:"SEMI_MONTHLY"}` payload as the kept rule → **HTTP 500 `{"error":"Unexpected server error"}`** (Prisma P2002 falls through the generic `jsonError` branch — see "follow-ups" below for the polish opportunity), and `GET /api/recurring-rules` confirms still 2 active rules. *(Fix 2026-04-26 — added a partial unique index via `prisma/migrations/002_recurring_rule_unique/migration.sql`. SQL-only because Prisma DSL can't express partial uniqueness; the migration is the source of truth. Prod data cleanup: deleted the 0-children SEMI_MONTHLY orphan `cmoe2swug00011np6dmyyq62z`, keeping `cmoe3m2mz000i1moa4y9tpsnd` (1 child) and the distinct INTERVAL_DAYS rule `cmoe3jfz6000g1moa3gett8tc` (1 child).)*
 
 ## Round 8 — caveats / coverage notes
 
@@ -1390,16 +1390,11 @@ Final sweep `GET /api/transactions?q=%5BTEST-AGENT-R8-` → 0 matches across bot
 | RecurringRule DB-level dedup constraint | **NEW — partial unique index shipping in migration 002** |
 | Prod Azlotv duplicate | **CLEANED** (0-children orphan deleted) |
 
-## Round 8 — note for next round
+## Round 8 — follow-ups for R9 (not bugs, polish opportunities)
 
-Two follow-ups that are *not* bugs but worth flagging for whoever runs R9:
-
-1. **Re-verify the DEDUP migration applied** after the deploy lands. The Dockerfile's `prisma migrate deploy` runs on container start, but if the deploy script ever changes (e.g. moves to a separate db-only container), the migration could silently no-op. One-line check:
-   ```bash
-   aws ssm start-session --target i-0c1f380bdbc9a09c8 --profile newaccount
-   docker exec finance-os-db-1 psql -U postgres -d finance_os -c "\d \"RecurringRule\"" | grep active_uq
-   ```
-   Expect to see the partial index named `recurringrule_entityid_title_cadence_active_uq`.
+1. **Polish: P2002 → 409 with helpful message.** The DEDUP constraint trip currently returns `500 "Unexpected server error"` because `src/lib/server/http.ts:jsonError` doesn't recognize Prisma's `PrismaClientKnownRequestError`. Adding a branch — `if (error instanceof PrismaClientKnownRequestError && error.code === "P2002")` → 409 `{error: "A recurring rule with this title and cadence already exists for this entity", target: error.meta?.target}` — would turn the duplicate-create UX from "something broke" into "you already have one". Applies to every model that gets a future `@@unique`, not just RecurringRule. Worth doing before the next constraint lands.
 
 2. **L1180 SSR caveat** — if a future refactor lifts `useSearchParams()` out of `LoginForm`, run a DOM probe to confirm the form's `method`/`action` attrs land in the SSR'd HTML. They're already in the JS bundle; that's enough today.
+
+3. **Migration apply telemetry.** R8 had to `aws ssm` into EC2 to confirm the migration applied. A nice-to-have: after `prisma migrate deploy`, log the count of applied migrations to a CloudWatch log group, and have the deploy workflow assert `applied_count >= expected_count`. Avoids the silent "container restarted but didn't migrate" failure mode altogether. Out of scope today, but the moment a migration is risky/destructive, this becomes worth building.
 
