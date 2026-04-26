@@ -78,7 +78,7 @@ export function RowActions({ id, resource, onEdit, confirmMessage }: Props) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-ledger transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-ledger"
+        className="inline-flex h-8 w-8 p-1.5 items-center justify-center rounded-md text-muted-ledger transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-ledger"
       >
         <MoreVertical className="h-4 w-4" />
       </button>

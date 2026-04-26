@@ -32,6 +32,9 @@ export default async function TransactionsPage() {
     date: tx.date.toISOString(),
   })) as unknown as LedgerTransaction[];
   const initialNextCursor = hasMore ? initialRows[initialRows.length - 1]?.id ?? null : null;
+  // Captured server-side so SSR + first hydration agree on the
+  // "Scheduled" badge cutoff without a setState-in-effect dance.
+  const serverNowMs = new Date().getTime();
 
   return (
     <>
@@ -60,6 +63,7 @@ export default async function TransactionsPage() {
             initialNextCursor={initialNextCursor}
             categories={categories}
             entities={entities}
+            serverNowMs={serverNowMs}
           />
         </Card>
       </section>

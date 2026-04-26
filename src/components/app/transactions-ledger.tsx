@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { RowActions } from "@/components/app/row-actions";
 import { EditDialog } from "@/components/app/edit-dialog";
 import { TransactionEditForm } from "@/components/app/transaction-edit-form";
 import { formatMad } from "@/lib/finance/money";
+import { formatLocalYmd } from "@/lib/finance/date";
 import type { Category, FinancialEntity } from "@prisma/client";
 
 // LedgerTransaction is a thin shape — server payload includes `entity` and
@@ -34,20 +35,15 @@ type Props = {
   initialNextCursor: string | null;
   categories: Category[];
   entities: FinancialEntity[];
+  // Captured server-side at render time so SSR + first hydration agree on
+  // the "Scheduled" badge cutoff. Avoids React #418 from server/client time
+  // skew without a setState-in-effect dance.
+  serverNowMs: number;
 };
 
 const PAGE_SIZE = 50;
 
-// Format an ISO date string as YYYY-MM-DD in the *browser's* local time zone.
-// `Intl.DateTimeFormat` defaults `timeZone` to the resolved local zone, so
-// `2026-03-28T23:00:00Z` (which is 2026-03-29 00:00 in Africa/Casablanca)
-// renders as "2026-03-29" instead of the UTC slice's "2026-03-28".
-const ymdFormatter = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
-function formatLocalYmd(iso: string) {
-  return ymdFormatter.format(new Date(iso));
-}
-
-export function TransactionsLedger({ initial, initialNextCursor, categories, entities }: Props) {
+export function TransactionsLedger({ initial, initialNextCursor, categories, entities, serverNowMs }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<LedgerTransaction[]>(initial);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
@@ -57,7 +53,6 @@ export function TransactionsLedger({ initial, initialNextCursor, categories, ent
   const [editing, setEditing] = useState<LedgerTransaction | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
-  const now = useMemo(() => new Date(), []);
 
   const runSearch = useCallback(
     async (q: string, opts: { append?: boolean; cursor?: string | null } = {}) => {
@@ -125,7 +120,7 @@ export function TransactionsLedger({ initial, initialNextCursor, categories, ent
       <div className="space-y-2">
         {rows.map((transaction) => {
           const txDate = new Date(transaction.date);
-          const isFuture = txDate.getTime() > now.getTime();
+          const isFuture = txDate.getTime() > serverNowMs;
           return (
             <div key={transaction.id} className="grid grid-cols-[1fr_auto_auto] items-start gap-3 rounded-md bg-surface-inset p-3">
               <div>
