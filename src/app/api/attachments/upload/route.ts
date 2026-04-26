@@ -8,6 +8,10 @@ const MAX_BYTES = 10 * 1024 * 1024;
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (contentLength > MAX_BYTES) {
+      throw new HttpError(413, "File exceeds 10MB limit");
+    }
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "Missing file");

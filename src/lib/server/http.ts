@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { ZodError, type ZodType } from "zod";
 import { auth } from "../../../auth";
 import { HttpError, type ZodIssueSummary } from "@/lib/server/errors";
@@ -69,6 +70,13 @@ export function jsonError(error: unknown) {
         ? { error: error.message, issues: error.issues }
         : { error: error.message },
       { status: error.status },
+    );
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    return NextResponse.json(
+      { error: "Resource already exists", target: error.meta?.target ?? null },
+      { status: 409 },
     );
   }
 

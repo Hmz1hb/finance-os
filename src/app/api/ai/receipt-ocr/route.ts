@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
     if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
       throw new HttpError(415, "Expected multipart/form-data");
     }
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (contentLength > MAX_BYTES) {
+      throw new HttpError(413, "File exceeds 10MB limit");
+    }
     let form: FormData;
     try {
       form = await request.formData();
