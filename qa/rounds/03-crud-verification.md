@@ -59,7 +59,7 @@
   - **Expected:** 400 (or 415) with a clear "expected multipart/form-data" message — wrong content-type is a client error, not an unexpected server error.
   - **Severity:** Polish — multipart inputs are validated correctly (400 / 413 / 503); only the wrong-content-type path leaks the generic 500. Pollutes error budgets and looks like an outage to monitoring.
 
-- [ ] **P3 — [TEST-AGENT-R3-V2] Loan schema repro example in Round 1 ledger is stale** (informational only — fix is in)
+- [x] **P3 — [TEST-AGENT-R3-V2] Loan schema repro example in Round 1 ledger is stale** (informational only — fix is in) ✓ R10-fixed 2026-04-26 — `qa/rounds/01-original-audit.md:95` updated to reflect the now-required fields (`kind`, `lenderName`, `monthlyPayment`, `startDate`).
   - **Note:** Round 1 line 95 lists the bad payload as `{originalAmount, remainingBalance, interestRate, expectedPayoffDate}`. Today's schema requires `kind` (`OWED_BY_ME`/`OWED_TO_ME`/`CREDIT_CARD`/`BUSINESS_LOAN`/`BNPL`), `lenderName`, `monthlyPayment`, `startDate`. The error envelope is clean and validation works correctly — just flagging that the loan model has been re-shaped since Round 1 and the ledger's example payload is stale. Future audits should refer to the current Zod schema.
 
 ## N4 — SEO + print + SW bgsync
@@ -294,7 +294,7 @@ Audited the pages R2-A skipped (`/categories`, `/goals`, `/receivables`, `/payro
   - **Expected:** Either visible `<label for="login-username">Username</label>` paired with the input (preferred for everyone, including sighted users on auto-fill mismatches), or at minimum an `aria-label="Username"` / `aria-label="Password"` on the input itself.
   - **Severity:** P2 — login is the front-door of the app and the only place a public unauthenticated user ever lands. Outside the authenticated app every other form is labelled correctly, so this is a single-page miss.
 
-- [ ] **P3 — [TEST-AGENT-R3-N2] Focus-trap in the Delete-confirm dialog: not provable via automation**
+- [x] **P3 — [TEST-AGENT-R3-N2] Focus-trap in the Delete-confirm dialog: not provable via automation** ✓ R10-closed-by-code-read 2026-04-26 — `src/components/app/confirm-dialog.tsx:28–63` implements a custom Tab-wrap on top of the Radix `Dialog`: initial focus on `confirmRef`, manual forward + backward Tab cycling that prevents focus escape, `previousActive?.focus()` restore on close, `body.overflow = "hidden"` background scroll lock. Implementation is sound; no synthetic event needed.
   - **Page:** any list page with row delete (verified on /receivables).
   - **Repro:** Dialog has `role="dialog"`, `aria-modal="true"`, focus enters correctly, Escape closes — but couldn't verify Tab cycling via synthetic `KeyboardEvent` (browser doesn't actually shift focus on dispatched Tab). Manual keyboard test recommended; if Radix's focus-scope is wired the trap works, but worth a one-line sanity check by the developer.
   - **Severity:** P3 — most likely fine (Radix `Dialog` traps focus by default), flagging as "untested by automation" rather than "broken".

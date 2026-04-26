@@ -19,7 +19,7 @@ Round 9 ran two waves against the deployed bundle (`fc85164` → success 13:48Z,
 
 ### P2
 
-- **R9-EDIT-001 — PATCH validation parity drops `> 0` refinement on monetary fields (6 routes)** — origin: this round, EDIT agent.
+- **R9-EDIT-001 — PATCH validation parity drops `> 0` refinement on monetary fields (6 routes)** — origin: this round, EDIT agent. ✓ R10-fixed 2026-04-26 — shared `src/lib/server/schemas.ts` `positiveAmount[Optional]` imported by every POST + PATCH; `tests/schemas.test.ts` matrix asserts 400 across all 7 resources.
   - **Repro**: `PATCH /api/transactions/<id>` with `{amount: -5}`; same shape on `/api/loans/<id>` with `{originalAmount: -1}`, `/api/goals/<id>` with `{targetAmount: -1}`, `/api/subscriptions/<id>` with `{amount: -2}`, `/api/receivables/<id>` with `{amount: -3}`, `/api/owner-pay/<id>` with `{amount: -4}`, `/api/recurring-rules/<id>` with `{amount: -7}`. Live-verified writes to DB.
   - **Expected**: 400 with the same `Amount must be greater than 0` (or equivalent) Zod error that the matching POST schema returns.
   - **Actual**: 200; DB stores negative `amountCents` / `originalAmountCents` / `targetAmountCents`.
@@ -27,7 +27,7 @@ Round 9 ran two waves against the deployed bundle (`fc85164` → success 13:48Z,
   - **Root cause**: each PATCH route in `src/app/api/<resource>/[id]/route.ts` rewrites the amount field as `z.union([z.string(), z.number()]).optional()` and drops the `.refine(value > 0)` that the matching POST schema enforces.
   - **Fix sketch**: lift the `> 0` refinement into a shared schema (or copy it into each PATCH schema). The same pattern fixes R9-EDIT-002 / 003 / 004 / 005 below.
 
-- **R9-FLOWS-001 — Goal over-contribution silently exceeds `targetCents`** — origin: this round, FLOWS agent (F4).
+- **R9-FLOWS-001 — Goal over-contribution silently exceeds `targetCents`** — origin: this round, FLOWS agent (F4). ✓ R10-fixed 2026-04-26 — overpayment guard in `src/app/api/goals/[id]/contributions/route.ts` mirrors the receivables pattern; `tests/goal-contributions-overcontribution.test.ts` covers partial / over / exact / fully-funded paths.
   - **Repro**: create a goal with `targetAmount=100.00 MAD` (`targetCents=10000`). POST `/api/goals/<id>/contributions` `{amount:"80.00"}` → 200, `currentSavedCents=8000`. POST `{amount:"50.00"}` → 200, `currentSavedCents=13000` (30% over target).
   - **Expected**: second contribution rejects (or, at minimum, returns a flag) once `currentSavedCents` would exceed `targetAmountCents`.
   - **Actual**: both succeed; saved-progress signal silently corrupts.
@@ -36,19 +36,19 @@ Round 9 ran two waves against the deployed bundle (`fc85164` → success 13:48Z,
 
 ### P3
 
-- **R9-AI-001 — `POST /api/ai/receipt-ocr` returns 415 for body > 10 MB instead of the documented 413** — origin: AI-BEDROCK agent (A6).
+- **R9-AI-001 — `POST /api/ai/receipt-ocr` returns 415 for body > 10 MB instead of the documented 413** — origin: AI-BEDROCK agent (A6). ✓ R10-fixed 2026-04-26 — `Content-Length` pre-check on receipt-ocr + attachments/upload before `request.formData()`; pre-auth `text/plain` POST still returns 415 (regression guard at the wire). Authenticated 11 MB probe tabled for next round (orchestrator lacks session cookie).
   - **Repro**: POST `/api/ai/receipt-ocr` with an 11 MB random Blob → **HTTP 415** `{"error":"Expected multipart/form-data"}`. 9 MB control returns 503 (Bedrock gated, not a 415). Latency 3230 ms suggests the body is read fully before failing.
   - **Expected**: `413 "File exceeds 10MB limit"` per `src/app/api/ai/receipt-ocr/route.ts:30`.
   - **Actual**: `415 "Expected multipart/form-data"`. `request.formData()` throws first (presumably hitting a Next/Node body-size limit), and the catch at lines 25-27 collapses every parse failure into a generic 415.
   - **Fix sketch**: detect the size-limit error type or pre-check `request.headers.get('content-length')` before parsing.
 
-- **R9-PWA-001 — React #418 hydration mismatch on `/transactions` cold load** — origin: MOBILE-PWA agent.
+- **R9-PWA-001 — React #418 hydration mismatch on `/transactions` cold load** — origin: MOBILE-PWA agent. ✓ R10-fixed 2026-04-26 — `formatLocalYmd` extracted to `src/lib/finance/date.ts` pinned to Africa/Casablanca; `serverNowMs` threaded from page server component into the ledger so the "Scheduled" badge cutoff is identical SSR + first hydration. `tests/format-local-ymd.test.ts` asserts deterministic output across simulated host TZs.
   - **Repro**: navigate to `/transactions` from a cold tab; minified React error #418 ("text content mismatch") thrown from `4bd1b696-c2f6e0877b6c10aa.js` shortly after the page settles. Reproducible.
   - **Expected**: zero hydration warnings on a stable production build.
   - **Likely root cause**: server vs. client text divergence in a transaction row or header — date / locale / currency formatter or "x ago" relative time. R7's `formatLocalYmd` likely has a server/client TZ split that emits different strings on first SSR vs first hydration.
   - **Severity**: P3 (medium-leaning) — no visible breakage, but produces a recoverable error and double-render; worth tracking down before it hides a real layout issue.
 
-- **R9-PWA-002 — 50+ sub-32px touch targets on `/transactions`** — origin: MOBILE-PWA agent.
+- **R9-PWA-002 — 50+ sub-32px touch targets on `/transactions`** — origin: MOBILE-PWA agent. ✓ R10-fixed 2026-04-26 — `src/components/app/row-actions.tsx` button `h-7 w-7` → `h-8 w-8 p-1.5` (32 px). The "13×13 select-all checkbox" sub-claim was a false positive (no select-all UI exists in the ledger); recorded as a verified non-bug in `qa/rounds/10-team-fix-batch.md`.
   - **Repro**: at `/transactions`, the select-all checkbox is 13×13 px and 50× "Row actions" buttons are 28×28 px. Below the 32 px soft threshold and well below iOS's 44 px guideline.
   - **Severity**: P3 mobile UX. Recommendation: inflate hit-area via `padding`/`::before` rather than visual size, so the desktop look is preserved.
   - **Caveat**: sampled at desktop viewport (3432 px) because real DevTools `Emulation.setDeviceMetricsOverride` is not exposed via the in-page JS context. Mobile responsive variant may collapse differently.
@@ -61,21 +61,21 @@ Round 9 ran two waves against the deployed bundle (`fc85164` → success 13:48Z,
   - **Repro**: `navigator.serviceWorker.controller` is active+activated; `caches.keys()` returns `workbox-precache-v2-...` (108 entries), `finance-os-static-assets` (7), `start-url` (1). After a successful `GET /api/transactions?limit=1` from a controlled tab, **no `/api/*` runtime cache populated** in any of the 3 caches.
   - **Likely**: the NetworkFirst handler is gated to a narrower path pattern, or page-initiated fetches bypass the SW. Worth a dev-side spot-check; could be intentional cache scoping. Not flagged P0/P1 because the documented offline behavior is "graceful degradation, not full offline-first".
 
-- **R9-EDIT-002 — Loans `interestRate` cap missing on PATCH** — code-confirmed, source `src/app/api/loans/[id]/route.ts`. POST clamps to `[0, 1]` ("Use a decimal rate (0.05 = 5%)"); PATCH only enforces `min(0)`. PATCH allows `interestRate: 5` (= 500%). P3 correctness; same root cause as R9-EDIT-001 (PATCH schema diverges from POST).
+- **R9-EDIT-002 — Loans `interestRate` cap missing on PATCH** — code-confirmed, source `src/app/api/loans/[id]/route.ts`. POST clamps to `[0, 1]` ("Use a decimal rate (0.05 = 5%)"); PATCH only enforces `min(0)`. PATCH allows `interestRate: 5` (= 500%). P3 correctness; same root cause as R9-EDIT-001 (PATCH schema diverges from POST). ✓ R10-fixed 2026-04-26 — shared `interestRateOptional` primitive imported by both POST and PATCH.
 
-- **R9-EDIT-003 — Loans payoff cross-check missing on PATCH** — code-confirmed. POST `superRefine` rejects `expectedPayoffDate <= startDate`; PATCH lacks the cross-check, so PATCH can flip `expectedPayoffDate` to any value. P3 correctness.
+- **R9-EDIT-003 — Loans payoff cross-check missing on PATCH** — code-confirmed. POST `superRefine` rejects `expectedPayoffDate <= startDate`; PATCH lacks the cross-check, so PATCH can flip `expectedPayoffDate` to any value. P3 correctness. ✓ R10-fixed 2026-04-26 — shared `loanDateRefinement` superRefine wired into both POST and PATCH (fires when both date fields are present in the request body; DB-aware variant logged as R10 follow-up #3).
 
-- **R9-EDIT-004 — Goals `currentSaved >= 0` missing on PATCH** — code-confirmed. POST refines `currentSaved >= 0`; PATCH drops it. P3 correctness — combined with R9-EDIT-001's negative-amount asymmetry, a goal can end up with a negative `currentSavedCents`.
+- **R9-EDIT-004 — Goals `currentSaved >= 0` missing on PATCH** — code-confirmed. POST refines `currentSaved >= 0`; PATCH drops it. P3 correctness — combined with R9-EDIT-001's negative-amount asymmetry, a goal can end up with a negative `currentSavedCents`. ✓ R10-fixed 2026-04-26 — shared `nonNegativeAmountOptional` primitive imported by both POST and PATCH.
 
-- **R9-EDIT-005 — Recurring-rules `superRefine` missing on PATCH** — code-confirmed. POST `superRefine` enforces (a) `intervalDays` required for `INTERVAL_DAYS`, (b) `dayOfMonth` for `MONTHLY_DAY` / `SEMI_MONTHLY`, (c) `secondDayOfMonth` for `SEMI_MONTHLY`, (d) `endDate > startDate`. PATCH has none of these — a record can be flipped to `cadence: SEMI_MONTHLY` without the required day fields, leaving the next-occurrence calculation undefined. P3 correctness.
+- **R9-EDIT-005 — Recurring-rules `superRefine` missing on PATCH** — code-confirmed. POST `superRefine` enforces (a) `intervalDays` required for `INTERVAL_DAYS`, (b) `dayOfMonth` for `MONTHLY_DAY` / `SEMI_MONTHLY`, (c) `secondDayOfMonth` for `SEMI_MONTHLY`, (d) `endDate > startDate`. PATCH has none of these — a record can be flipped to `cadence: SEMI_MONTHLY` without the required day fields, leaving the next-occurrence calculation undefined. P3 correctness. ✓ R10-fixed 2026-04-26 — shared `recurringRuleRefinement` superRefine wired into both POST and PATCH; DB-aware patch validation logged as R10 follow-up #3.
 
-- **R9-EDGES-001 — `0.004 GBP` accepted with `amountCents: 0`** — origin: EDGES agent (E6).
+- **R9-EDGES-001 — `0.004 GBP` accepted with `amountCents: 0`** — origin: EDGES agent (E6). ✓ R10-fixed 2026-04-26 — `positiveAmount` primitive runs `toCents()` inside its `.superRefine` and asserts `cents >= 1`, so the rounded-to-zero edge is now a 400 on both POST and PATCH (`tests/schemas.test.ts` covers `0.004` rejection).
   - **Repro**: `POST /api/transactions {amount: "0.004", currency: "GBP", ...}` → 200, `amountCents: 0`, `madEquivalentCents: 0`. By contrast `0.005 GBP` rounds to 1 cent (half-up), and `1e10 MAD` is rejected at the boundary.
   - **Severity**: P3 — a zero-amount transaction is meaningless; the Zod schema's `> 0` refinement (which exists on POST per R9-EDIT-001's analysis) appears to apply to the parsed numeric value before rounding, so `0.004 → 0.004 > 0 → passes refinement → rounds to 0`. The check should be on the rounded `amountCents` (`>= 1`) or on the absolute value with explicit precision rules.
 
 ### Informational
 
-- **R9-PREFLIGHT-001 — `/sw.js` is served with `cache-control: public, max-age=14400`** — origin: this round, pre-flight curl probe.
+- **R9-PREFLIGHT-001 — `/sw.js` is served with `cache-control: public, max-age=14400`** — origin: this round, pre-flight curl probe. ✓ R10-fixed 2026-04-26 — `next.config.ts` adds a `/sw.js` headers entry returning `Cache-Control: no-cache, no-store, must-revalidate`. Live-verified post-deploy: `curl -sI https://finance.elhilali.dev/sw.js` returns the new header. (One-time Cloudflare purge of `/sw.js` would flush the stale cached entry faster; logged as R10 follow-up #8.)
   - **Repro**: `curl -I https://finance.elhilali.dev/sw.js` → `cache-control: public, max-age=14400`.
   - **Implication**: a fresh SW deploy can be cached at the Cloudflare edge for up to 4 hours; existing clients won't pick up the new SW until the CDN cache expires (or until the SW itself fetches with a cache-busting query). NetworkFirst on `/api/*` is unaffected, but any change to caching strategy / precache list / runtime handlers is delayed by up to 4 h.
   - **Severity**: informational, not a regression — flagging so it's captured if a future SW change needs to roll out promptly.

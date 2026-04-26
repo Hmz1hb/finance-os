@@ -27,6 +27,7 @@ Eight rounds of agent-driven QA against `https://finance.elhilali.dev`, started 
 | 7 | [`07-middleware-rename.md`](rounds/07-middleware-rename.md) | Diagnosed the 3 R6 security FAILs: Next.js 16 deprecated `middleware.ts` in favour of `src/proxy.ts`. Rename + 5 other fixes shipped. |
 | 8 | [`08-r7-live-verification.md`](rounds/08-r7-live-verification.md) | Every R7 fix verified live at the wire. Closed the R6 Azlotv duplicate via partial unique index migration. |
 | 9 | [`09-team-coverage.md`](rounds/09-team-coverage.md) | 5-agent team in two waves: all 6 R7/R8 fixes re-verified live (incl. write-bucket + login-bucket recovery); flows / 8 Edit dialogs / mobile-PWA / AI / edges covered. 11 new findings, headlined by P2 PATCH-validation-parity (negative cents writable on 6 routes) and P2 goal over-contribution. |
+| 10 | [`10-team-fix-batch.md`](rounds/10-team-fix-batch.md) | 6 parallel fix agents close 9 open items + the R8 P2002 polish: shared Zod schemas (POST/PATCH parity + rounded-cents floor), goal-contribution cap, P2002→409 mapping, OCR 413 pre-check, /sw.js CDN revalidate, /transactions hydration + touch-target fixes, pay-myself interactive `$transaction` rollback. 99/99 vitest. |
 
 ## Conventions
 

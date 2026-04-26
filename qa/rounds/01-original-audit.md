@@ -92,7 +92,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 
 - [x] **P0 — Loans: server-side validation absent** *(Phase 3)*  ✓ Verified 2026-04-25
   - **Page:** `/loans`, `POST /api/loans`
-  - **Repro:** `POST {originalAmount: -500, remainingBalance: -100, interestRate: 1000, expectedPayoffDate: "2020-01-01"}` → 200, persisted.
+  - **Repro:** `POST {kind:"OWED_BY_ME", lenderName:"X", originalAmount:-500, currency:"MAD", interestRate:1000, monthlyPayment:50, startDate:"2026-01-01", expectedPayoffDate:"2020-01-01", remainingBalance:-100}` → 200, persisted. *(R10 2026-04-26: example payload normalized against the current schema — `kind`/`lenderName`/`monthlyPayment`/`startDate` are required; the negative + out-of-range fields are still the parts the server should reject.)*
   - **Expected:** 400 with field errors.
 
 - [x] **P0 — Snowball/Avalanche planner doesn't toggle and orders neither way** *(Phase 6 — ?strategy=snowball|avalanche with LoanStrategyToggle pills)*
@@ -202,7 +202,7 @@ The "no delete on income-schedules" bug is **systemic**. There are zero `DELETE`
 - [ ] **P2 — Cluster of 503s on RSC prefetches**
   - Affected: `/business/tax?_rsc=…`, `/receivables?_rsc=…`, `/income-schedules?_rsc=…`, `/dashboard?_rsc=…`, `/transactions?_rsc=…`. Likely correlates with the 502.
 
-- [ ] **P2 — "Combined" wallet card accumulates phantom negatives after failed mutations**
+- [x] **P2 — "Combined" wallet card accumulates phantom negatives after failed mutations** ✓ R10-fixed 2026-04-26 — root cause was `src/app/api/payroll/pay-myself/route.ts` using the `prisma.$transaction([...])` array form for steps 1–2 (balanced EXPENSE + INCOME) then bare `prisma.payrollPerson.upsert` and `prisma.payrollPayment.create` outside the transaction. Step-3/4 failures committed the balanced rows orphan-style and the wallet aggregation in `src/lib/server/cockpit.ts` picked them up. Converted to interactive `prisma.$transaction(async (tx) => …)` so all 4 steps participate in one atomic boundary; `tests/payroll-pay-myself-rollback.test.ts` asserts 0 leftover rows on forced step-3 failure. Cluster F also audited every other multi-step route and confirmed they already use the interactive form.
   - **Repro:** Visit any page, observe Combined go from 0 → −85.00 → −35.00 د.م. across failed actions. Suggests partial writes on failed server actions.
 
 - [x] **P2 — Future-dated transactions inconsistently filtered from ledger but still affect "Cash now"** *(Fix 2026-04-25 — cockpit cashBalance now scopes the where clause to `date <= now`, and the /transactions ledger flags future-dated rows with a "Scheduled" badge.)*
