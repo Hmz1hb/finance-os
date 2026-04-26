@@ -1,14 +1,12 @@
-import { differenceInCalendarDays } from "date-fns";
 import { ReceivableForm } from "@/components/app/receivable-form";
-import { ReceivablePaymentForm } from "@/components/app/receivable-payment-form";
+import { ReceivableRow } from "@/components/app/receivable-row";
 import { MetricCard } from "@/components/app/metric-card";
 import { PageHeader } from "@/components/app/page-header";
-import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
 import { receivableStatus } from "@/lib/server/cashflows";
-import { formatMad, formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -42,28 +40,14 @@ export default async function ReceivablesPage() {
         <Card>
           <CardHeader><CardTitle>Open ledger</CardTitle></CardHeader>
           <div className="space-y-3">
-            {receivables.map((item) => {
-              const status = receivableStatus(item);
-              const remaining = Math.max(0, item.amountCents - item.paidAmountCents);
-              return (
-                <div key={item.id} className="rounded-md bg-surface-inset p-3">
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-ledger">
-                        {item.entity.name} · {item.counterparty} · {status}
-                        {item.dueDate ? ` · ${Math.max(0, differenceInCalendarDays(new Date(), item.dueDate))} days aged` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <p className="text-sm font-semibold">{formatMoney(remaining, item.currency)}</p>
-                      <RowActions id={item.id} resource="receivables" />
-                    </div>
-                  </div>
-                  {!["PAID", "CANCELLED"].includes(status) ? <ReceivablePaymentForm receivableId={item.id} /> : null}
-                </div>
-              );
-            })}
+            {receivables.map((item) => (
+              <ReceivableRow
+                key={item.id}
+                receivable={item}
+                status={receivableStatus(item)}
+                entities={entities}
+              />
+            ))}
             {receivables.length === 0 ? <p className="text-sm text-muted-ledger">No receivables tracked yet.</p> : null}
           </div>
         </Card>

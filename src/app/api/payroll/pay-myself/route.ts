@@ -5,7 +5,7 @@ import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { getMadRate } from "@/lib/server/rates";
 import { contextForEntityType } from "@/lib/server/entities";
-import { HttpError, jsonError, parseJson, requireSession } from "@/lib/server/http";
+import { HttpError, jsonError, parseJson, requireWriteAuth } from "@/lib/server/http";
 
 const MAX_PAY_CENTS = 100_000_000;
 
@@ -22,11 +22,12 @@ const schema = z.object({
   notes: z.string().optional(),
   fromEntityId: z.string().min(1),
   toEntityId: z.string().min(1),
+  fxRate: z.number().positive().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    await requireSession();
+    await requireWriteAuth(request);
     const parsed = await parseJson(request, schema);
 
     const [fromEntity, toEntity] = await Promise.all([
@@ -35,6 +36,19 @@ export async function POST(request: NextRequest) {
     ]);
     if (!fromEntity) throw new HttpError(400, `Unknown fromEntityId: ${parsed.fromEntityId}`);
     if (!toEntity) throw new HttpError(400, `Unknown toEntityId: ${parsed.toEntityId}`);
+
+    // Currency mismatch guard: requested currency must match at least one entity's
+    // baseCurrency, OR the client must explicitly send fxRate to acknowledge FX.
+    const currencyMatchesEntity =
+      parsed.currency === fromEntity.baseCurrency || parsed.currency === toEntity.baseCurrency;
+    if (!currencyMatchesEntity && parsed.fxRate === undefined) {
+      throw new HttpError(400, "Currency does not match either entity. Send an explicit fxRate to acknowledge FX conversion.", [
+        {
+          path: "currency",
+          message: `Expected ${fromEntity.baseCurrency} (from) or ${toEntity.baseCurrency} (to); got ${parsed.currency}.`,
+        },
+      ]);
+    }
 
     const amountCents = toCents(parsed.amount);
     const rate = await getMadRate(parsed.currency);

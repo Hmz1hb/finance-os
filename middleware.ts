@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "./auth";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_WRITES = 60;
+const RATE_LIMIT_MAX_WRITES = 30;
+const LOGIN_LIMIT_WINDOW_MS = 15 * 60_000;
+const LOGIN_LIMIT_MAX_ATTEMPTS = 10;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const rateBuckets = new Map<string, { count: number; windowStart: number }>();
+const loginBuckets = new Map<string, { count: number; windowStart: number }>();
 
 function clientKey(req: Request, userId?: string | null) {
   if (userId) return `user:${userId}`;
@@ -12,19 +15,37 @@ function clientKey(req: Request, userId?: string | null) {
   return `ip:${forwarded ?? "unknown"}`;
 }
 
-function consumeRateBudget(key: string) {
+function ipKey(req: Request) {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return `ip:${forwarded ?? "unknown"}`;
+}
+
+function consumeBucket(
+  store: Map<string, { count: number; windowStart: number }>,
+  key: string,
+  windowMs: number,
+  max: number,
+) {
   const now = Date.now();
-  const bucket = rateBuckets.get(key);
-  if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
-    rateBuckets.set(key, { count: 1, windowStart: now });
+  const bucket = store.get(key);
+  if (!bucket || now - bucket.windowStart > windowMs) {
+    store.set(key, { count: 1, windowStart: now });
     return { allowed: true, retryAfter: 0 };
   }
   bucket.count += 1;
-  if (bucket.count > RATE_LIMIT_MAX_WRITES) {
-    const retryAfter = Math.max(1, Math.ceil((RATE_LIMIT_WINDOW_MS - (now - bucket.windowStart)) / 1000));
+  if (bucket.count > max) {
+    const retryAfter = Math.max(1, Math.ceil((windowMs - (now - bucket.windowStart)) / 1000));
     return { allowed: false, retryAfter };
   }
   return { allowed: true, retryAfter: 0 };
+}
+
+function consumeRateBudget(key: string) {
+  return consumeBucket(rateBuckets, key, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_WRITES);
+}
+
+function consumeLoginBudget(key: string) {
+  return consumeBucket(loginBuckets, key, LOGIN_LIMIT_WINDOW_MS, LOGIN_LIMIT_MAX_ATTEMPTS);
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>, extraHeaders?: Record<string, string>) {
@@ -40,7 +61,25 @@ export default auth((req) => {
   const path = nextUrl.pathname;
   const isApi = path.startsWith("/api/");
   const isApiAuth = path.startsWith("/api/auth/");
+  const isCredentialsCallback = path === "/api/auth/callback/credentials";
   const isAuthRoute = path.startsWith("/login") || isApiAuth;
+
+  // Special-case the credentials callback BEFORE the generic isApiAuth skip
+  // so we can rate-limit login attempts per IP (defense against bruteforce).
+  if (isCredentialsCallback) {
+    const method = req.method.toUpperCase();
+    if (!SAFE_METHODS.has(method)) {
+      const key = ipKey(req);
+      const { allowed, retryAfter } = consumeLoginBudget(key);
+      if (!allowed) {
+        return jsonResponse(
+          429,
+          { error: `Too many login attempts. Retry after ${retryAfter}s.` },
+          { "retry-after": String(retryAfter) },
+        );
+      }
+    }
+  }
 
   if (isApi && !isApiAuth) {
     const method = req.method.toUpperCase();

@@ -15,7 +15,16 @@ function isBedrockUnavailable(message: string) {
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const form = await request.formData();
+    const contentType = request.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
+      throw new HttpError(415, "Expected multipart/form-data");
+    }
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      throw new HttpError(415, "Expected multipart/form-data");
+    }
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "Missing file");
     if (file.size > MAX_BYTES) throw new HttpError(413, "File exceeds 10MB limit");

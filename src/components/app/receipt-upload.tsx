@@ -22,7 +22,18 @@ export function ReceiptUpload() {
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <Input name="file" type="file" accept="image/*,application/pdf" capture="environment" required />
+      <label htmlFor="receipt-file" className="mb-1 block text-xs text-muted-ledger">
+        Receipt image
+      </label>
+      <Input
+        id="receipt-file"
+        name="file"
+        type="file"
+        accept="image/*,application/pdf"
+        capture="environment"
+        required
+        aria-label="Upload receipt image"
+      />
       <Button type="submit" variant="outline" disabled={loading}>
         {loading ? <ScanLine className="h-4 w-4 animate-pulse" /> : <UploadCloud className="h-4 w-4" />}
         {loading ? "Reading receipt..." : "Scan receipt with AI"}

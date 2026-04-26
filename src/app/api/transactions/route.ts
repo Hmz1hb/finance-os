@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { addYears } from "date-fns";
-import { ContextMode, Currency, TransactionType } from "@prisma/client";
+import { ContextMode, Currency, TransactionType, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/db";
 import { toCents } from "@/lib/finance/money";
 import { jsonError, parseJson, requireSession } from "@/lib/server/http";
@@ -53,9 +53,41 @@ export async function GET(request: NextRequest) {
   try {
     await requireSession();
     const params = request.nextUrl.searchParams;
-    const year = Number(params.get("year") ?? new Date().getFullYear());
     const context = params.get("context");
     const entityId = params.get("entityId");
+    const cursor = params.get("cursor");
+    const q = params.get("q")?.trim();
+    const limitParam = Number(params.get("limit"));
+    const yearParam = params.get("year");
+
+    // Cursor-paginated mode: when `cursor`, `limit`, or `q` is present we switch
+    // off the legacy "give me a whole year up to 300 rows" envelope and return
+    // `{ data, nextCursor }` instead. This unblocks the /transactions UI from
+    // its old 80-row truncation while keeping existing year-bucket callers happy.
+    const usePagination = cursor !== null || q !== undefined || Number.isFinite(limitParam);
+    if (usePagination) {
+      const limit = Math.min(Math.max(Number.isFinite(limitParam) ? limitParam : 50, 1), 100);
+      const where: Prisma.TransactionWhereInput = {
+        deletedAt: null,
+        ...(entityId && entityId !== "combined" ? { entityId } : {}),
+        ...(context && context !== "COMBINED" ? { context: context as ContextMode } : {}),
+        ...(q ? { description: { contains: q, mode: "insensitive" } } : {}),
+      };
+      const rows = await prisma.transaction.findMany({
+        where,
+        include: { category: true, attachments: true, entity: true },
+        orderBy: [{ date: "desc" }, { id: "desc" }],
+        take: limit + 1,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      const hasMore = rows.length > limit;
+      const data = hasMore ? rows.slice(0, limit) : rows;
+      const nextCursor = hasMore ? data[data.length - 1]?.id ?? null : null;
+      return NextResponse.json({ data, nextCursor });
+    }
+
+    // Legacy envelope: bare array, scoped to a calendar year, hard-capped at 300.
+    const year = Number(yearParam ?? new Date().getFullYear());
     const start = new Date(Date.UTC(year, 0, 1));
     const end = new Date(Date.UTC(year + 1, 0, 1));
     const transactions = await prisma.transaction.findMany({

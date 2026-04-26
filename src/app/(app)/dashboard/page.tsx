@@ -20,7 +20,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Card>
           <p className="text-sm text-muted-ledger">
             Use the EntityRail to pick a valid entity, or visit{" "}
-            <Link href="/dashboard?entity=combined" className="text-blue-ledger underline">/dashboard?entity=combined</Link>.
+            <Link href="/dashboard?entity=combined" className="text-blue-ledger-fg underline">/dashboard?entity=combined</Link>.
           </p>
         </Card>
       </>
@@ -48,10 +48,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         badge={activeEntity ? activeEntity.baseCurrency : "Combined"}
       />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Cash now" value={formatMad(summary.cashCents)} icon={<Wallet className="h-5 w-5" />} />
-        <MetricCard label="Expected 30d" value={formatMad(summary.expectedIncomeCents)} tone="income" icon={<BanknoteArrowUp className="h-5 w-5" />} />
-        <MetricCard label="Receivables open" value={formatMad(summary.receivableOpenCents)} tone="plan" icon={<PanelTop className="h-5 w-5" />} />
-        <MetricCard label="Tax reserve" value={formatMad(summary.taxReserveCents)} tone="deadline" icon={<Landmark className="h-5 w-5" />} />
+        <MetricCard label="Cash now" value={formatMoney(summary.cashCents, summary.displayCurrency)} icon={<Wallet className="h-5 w-5" />} />
+        <MetricCard label="Expected 30d" value={formatMoney(summary.expectedIncomeCents, summary.displayCurrency)} tone="income" icon={<BanknoteArrowUp className="h-5 w-5" />} />
+        <MetricCard label="Receivables open" value={formatMoney(summary.receivableOpenCents, summary.displayCurrency)} tone="plan" icon={<PanelTop className="h-5 w-5" />} />
+        <MetricCard label="Tax reserve" value={formatMoney(summary.taxReserveCents, summary.displayCurrency)} tone="deadline" icon={<Landmark className="h-5 w-5" />} />
         <MetricCard label="Overdue owed" value={`${summary.overdueReceivableCount}`} tone="risk" icon={<ArrowDownRight className="h-5 w-5" />} />
       </section>
 
@@ -59,7 +59,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Card>
           <CardHeader>
             <CardTitle>Expected cash and receivables</CardTitle>
-            <Link href="/income-schedules" className="text-xs text-blue-ledger">Manage schedules</Link>
+            <Link href="/income-schedules" className="text-xs text-blue-ledger-fg">Manage schedules</Link>
           </CardHeader>
           <div className="space-y-2">
             {summary.expectedIncome.map((item) => (

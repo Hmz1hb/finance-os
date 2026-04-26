@@ -8,11 +8,25 @@
   --surface-inset: #171b25;
   --border: rgba(255, 255, 255, 0.09);
   --muted: #9ca8ba;
-  --blue-ledger: #4a90d9;
+  --blue-ledger: #2166b8;
+  --blue-ledger-fg: #6fa9e5;
   --green-income: #27ae60;
   --red-risk: #ff8b7a;
   --orange-deadline: #f39c12;
   --purple-plan: #8e44ad;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f5f7fb;
+    --foreground: #10151f;
+    --surface: #ffffff;
+    --surface-elevated: #fdfefe;
+    --surface-inset: #eef2f7;
+    --border: rgba(16, 21, 31, 0.1);
+    --muted: #5d6979;
+    --blue-ledger-fg: #2166b8;
+  }
 }
 
 @theme inline {
@@ -24,6 +38,7 @@
   --color-ledger-border: var(--border);
   --color-muted-ledger: var(--muted);
   --color-blue-ledger: var(--blue-ledger);
+  --color-blue-ledger-fg: var(--blue-ledger-fg);
   --color-green-income: var(--green-income);
   --color-red-risk: var(--red-risk);
   --color-orange-deadline: var(--orange-deadline);
@@ -40,6 +55,7 @@
   --surface-inset: #eef2f7;
   --border: rgba(16, 21, 31, 0.1);
   --muted: #5d6979;
+  --blue-ledger-fg: #2166b8;
 }
 
 * {
@@ -50,6 +66,12 @@ html {
   min-height: 100%;
   background: var(--background);
   color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  html {
+    color-scheme: light;
+  }
 }
 
 body {
@@ -67,7 +89,7 @@ textarea {
 }
 
 ::selection {
-  background: rgba(74, 144, 217, 0.35);
+  background: rgba(33, 102, 184, 0.35);
 }
 
 .safe-bottom {

@@ -25,7 +25,7 @@ export function LoginForm() {
     });
     setLoading(false);
     if (result?.error) {
-      setError("Invalid credentials or missing ADMIN_USER / ADMIN_PASSWORD.");
+      setError("Invalid username or password.");
       return;
     }
     router.push(params.get("callbackUrl") || "/dashboard");
@@ -34,11 +34,17 @@ export function LoginForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-ledger/15 text-blue-ledger">
+      <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-ledger/15 text-blue-ledger-fg">
         <LockKeyhole className="h-6 w-6" />
       </div>
-      <Input name="username" placeholder="Username" autoComplete="username" required />
-      <Input name="password" placeholder="Password" type="password" autoComplete="current-password" required />
+      <div className="space-y-1">
+        <label htmlFor="login-username" className="block text-sm font-medium">Username</label>
+        <Input id="login-username" name="username" placeholder="Username" autoComplete="username" required />
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="login-password" className="block text-sm font-medium">Password</label>
+        <Input id="login-password" name="password" placeholder="Password" type="password" autoComplete="current-password" required />
+      </div>
       {error ? <p className="text-sm text-red-risk">{error}</p> : null}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}

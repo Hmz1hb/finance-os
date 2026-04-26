@@ -6,6 +6,66 @@ function clamp(value: number, min = 0, max = 100) {
   return Math.min(max, Math.max(min, value));
 }
 
+const EMERGENCY_FUND_MIN_MONTHS_OF_HISTORY = 3;
+
+export type EmergencyFundProjection =
+  | {
+      status: "ok";
+      monthlyAverageCents: number;
+      targetCents: number;
+      monthsOfHistory: number;
+    }
+  | {
+      status: "insufficient_history";
+      monthsOfHistory: number;
+      requiredMonths: number;
+    };
+
+/**
+ * Compute the emergency-fund auto-target from personal expenses.
+ *
+ * Returns "insufficient_history" when fewer than 3 distinct calendar months
+ * of expense data exist — multiplying a noisy 1-2 week sample by 6 produces
+ * meaningless targets, so the UI should surface an empty state instead.
+ */
+export async function emergencyFundProjection(opts?: {
+  entityId?: string;
+  targetMonths?: number;
+}): Promise<EmergencyFundProjection> {
+  const entityId = opts?.entityId ?? "morocco_personal";
+  const targetMonths = opts?.targetMonths ?? 6;
+
+  const expenses = await prisma.transaction.findMany({
+    where: { entityId, kind: "EXPENSE", deletedAt: null },
+    select: { date: true, madEquivalentCents: true },
+  });
+
+  const monthKeys = new Set<string>();
+  let totalCents = 0;
+  for (const tx of expenses) {
+    const d = tx.date;
+    monthKeys.add(`${d.getUTCFullYear()}-${d.getUTCMonth()}`);
+    totalCents += tx.madEquivalentCents ?? 0;
+  }
+
+  const monthsOfHistory = monthKeys.size;
+  if (monthsOfHistory < EMERGENCY_FUND_MIN_MONTHS_OF_HISTORY) {
+    return {
+      status: "insufficient_history",
+      monthsOfHistory,
+      requiredMonths: EMERGENCY_FUND_MIN_MONTHS_OF_HISTORY,
+    };
+  }
+
+  const monthlyAverageCents = Math.round(totalCents / monthsOfHistory);
+  return {
+    status: "ok",
+    monthlyAverageCents,
+    targetCents: monthlyAverageCents * targetMonths,
+    monthsOfHistory,
+  };
+}
+
 export async function calculateFinancialHealthScore() {
   const [summary, emergency, loans, goals, incomeSources] = await Promise.all([
     dashboardSummary("COMBINED"),

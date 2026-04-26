@@ -68,7 +68,7 @@ function RailCard({
     <Link href={href} className="block rounded-md border border-ledger-border bg-surface px-4 py-3 transition hover:border-blue-ledger/50 hover:bg-surface-elevated">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-surface-inset text-blue-ledger">{icon}</span>
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-surface-inset text-blue-ledger-fg">{icon}</span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{name}</p>
             <p className="truncate text-xs text-muted-ledger">{label}</p>

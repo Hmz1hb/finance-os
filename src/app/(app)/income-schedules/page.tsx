@@ -2,10 +2,12 @@ import { RecurringRuleType } from "@prisma/client";
 import { IncomeScheduleForm } from "@/components/app/income-schedule-form";
 import { PageHeader } from "@/components/app/page-header";
 import { RowActions } from "@/components/app/row-actions";
+import { RecurringRuleRow } from "@/components/app/recurring-rule-row";
+import { ExpectedIncomeSettleButton } from "@/components/app/expected-income-settle-button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 import { listEntities } from "@/lib/server/entities";
-import { formatMad, formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,10 @@ export default async function IncomeSchedulesPage() {
                     <RowActions id={item.id} resource="expected-income" />
                   </div>
                 </div>
-                <p className="text-xs text-muted-ledger">{item.entity.name} · due {item.dueDate.toISOString().slice(0, 10)} · {item.counterparty ?? "No counterparty"}</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-ledger">{item.entity.name} · due {item.dueDate.toISOString().slice(0, 10)} · {item.counterparty ?? "No counterparty"}</p>
+                  <ExpectedIncomeSettleButton id={item.id} />
+                </div>
               </div>
             ))}
             {expected.length === 0 ? <p className="text-sm text-muted-ledger">No expected income yet.</p> : null}
@@ -55,16 +60,7 @@ export default async function IncomeSchedulesPage() {
         <CardHeader><CardTitle>Recurring rules</CardTitle></CardHeader>
         <div className="grid gap-2 md:grid-cols-2">
           {rules.map((rule) => (
-            <div key={rule.id} className="rounded-md bg-surface-inset p-3">
-              <div className="flex justify-between gap-3">
-                <p className="text-sm font-medium">{rule.title}</p>
-                <div className="flex items-start gap-2">
-                  <p className="text-sm font-semibold">{formatMoney(rule.amountCents, rule.currency)}</p>
-                  <RowActions id={rule.id} resource="recurring-rules" />
-                </div>
-              </div>
-              <p className="text-xs text-muted-ledger">{rule.entity.name} · {rule.cadence} · next {rule.nextDueDate.toISOString().slice(0, 10)}</p>
-            </div>
+            <RecurringRuleRow key={rule.id} rule={rule} />
           ))}
         </div>
       </Card>

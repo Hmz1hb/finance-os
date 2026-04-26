@@ -14,10 +14,19 @@ export async function requireSession() {
 }
 
 function summarizeZodIssues(error: ZodError): ZodIssueSummary[] {
-  return error.issues.map((issue) => ({
-    path: issue.path.map(String).join(".") || "(root)",
-    message: issue.message,
-  }));
+  return error.issues.map((issue) => {
+    // z.coerce.date() runs `new Date(undefined)` → an Invalid Date instance,
+    // which Zod then reports as "expected date, received Date". Rewrite that
+    // confusing artifact into a plain "Required" so the envelope makes sense.
+    const isCoerceDateArtifact =
+      issue.code === "invalid_type" &&
+      (issue as { expected?: unknown }).expected === "date" &&
+      (issue as { received?: unknown }).received === "Invalid Date";
+    return {
+      path: issue.path.map(String).join(".") || "(root)",
+      message: isCoerceDateArtifact ? "Required (must be a valid date)" : issue.message,
+    };
+  });
 }
 
 export async function parseJson<T>(request: NextRequest | Request, schema: ZodType<T>): Promise<T> {

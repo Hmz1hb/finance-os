@@ -1,6 +1,6 @@
 import { CategoryForm } from "@/components/app/category-form";
+import { CategoryRow } from "@/components/app/category-row";
 import { PageHeader } from "@/components/app/page-header";
-import { RowActions } from "@/components/app/row-actions";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
 
@@ -20,13 +20,7 @@ export default async function CategoriesPage() {
           <CardHeader><CardTitle>{categories.length} categories</CardTitle></CardHeader>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {categories.map((category) => (
-              <div key={category.id} className="flex items-start justify-between gap-2 rounded-md bg-surface-inset p-3">
-                <div>
-                  <p className="text-sm font-medium">{category.name}</p>
-                  <p className="text-xs text-muted-ledger">{category.context} · {category.type}{category.isSystem ? " · system" : ""}</p>
-                </div>
-                {category.isSystem ? null : <RowActions id={category.id} resource="categories" />}
-              </div>
+              <CategoryRow key={category.id} category={category} />
             ))}
           </div>
         </Card>

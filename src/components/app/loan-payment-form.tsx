@@ -32,7 +32,7 @@ export function LoanPaymentForm({ loanId }: { loanId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-ledger hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-ledger"
+        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-ledger-fg hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-ledger"
       >
         + Record payment
       </button>

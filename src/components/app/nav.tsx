@@ -19,6 +19,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SignOutButton } from "@/components/app/sign-out-button";
 
 const navGroups = [
   {
@@ -82,12 +83,12 @@ const mobileItems = [
 
 export function SidebarNav() {
   return (
-    <aside className="hidden w-72 shrink-0 border-r border-ledger-border bg-background px-4 py-5 lg:block">
+    <aside className="hidden w-72 shrink-0 flex-col border-r border-ledger-border bg-background px-4 py-5 lg:flex">
       <div className="mb-6 px-2">
         <p className="text-xs uppercase tracking-[0.18em] text-muted-ledger">Finance OS</p>
         <p className="mt-2 text-xl font-semibold">Cash cockpit</p>
       </div>
-      <nav aria-label="Primary" className="space-y-5">
+      <nav aria-label="Primary" className="flex-1 space-y-5">
         {navGroups.map((group) => (
           <div key={group.label}>
             <p className="mb-2 px-3 text-[11px] uppercase tracking-[0.16em] text-muted-ledger">{group.label}</p>
@@ -111,6 +112,9 @@ export function SidebarNav() {
           </div>
         ))}
       </nav>
+      <div className="mt-6 border-t border-ledger-border pt-4">
+        <SignOutButton variant="sidebar" />
+      </div>
     </aside>
   );
 }
@@ -118,7 +122,7 @@ export function SidebarNav() {
 export function MobileNav() {
   return (
     <nav aria-label="Mobile primary" className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-ledger-border bg-background/95 px-2 py-2 backdrop-blur lg:hidden">
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-6 gap-1">
         {mobileItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -128,6 +132,7 @@ export function MobileNav() {
             </Link>
           );
         })}
+        <SignOutButton variant="mobile" />
       </div>
     </nav>
   );

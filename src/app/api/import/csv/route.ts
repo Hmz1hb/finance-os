@@ -10,14 +10,27 @@ const REQUIRED_COLUMNS = ["amount", "date"];
 export async function POST(request: NextRequest) {
   try {
     await requireSession();
-    const form = await request.formData();
+    const contentType = request.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
+      throw new HttpError(415, "Expected multipart/form-data");
+    }
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      throw new HttpError(415, "Expected multipart/form-data");
+    }
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "Missing CSV file");
     const text = await file.text();
     if (!text.trim()) throw new HttpError(400, "CSV file is empty");
 
     const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 2) throw new HttpError(400, "CSV must have a header row and at least one data row");
+    if (lines.length < 2)
+      throw new HttpError(
+        400,
+        `CSV must have a header row and at least one data row. Expected at minimum: ${REQUIRED_COLUMNS.join(", ")}`,
+      );
 
     const [headerLine, ...rows] = lines;
     const headers = headerLine.split(",").map((header) => header.trim().toLowerCase());

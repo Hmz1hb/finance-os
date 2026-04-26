@@ -2,13 +2,13 @@ import type { Prisma } from "@prisma/client";
 import { PageHeader } from "@/components/app/page-header";
 import { MetricCard } from "@/components/app/metric-card";
 import { LoanForm } from "@/components/app/loan-form";
-import { LoanPaymentForm } from "@/components/app/loan-payment-form";
 import { LoanStrategyToggle } from "@/components/app/loan-strategy-toggle";
-import { RowActions } from "@/components/app/row-actions";
+import { LoanRow } from "@/components/app/loan-row";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/server/db";
-import { formatMad, formatMoney } from "@/lib/finance/money";
+import { formatMad } from "@/lib/finance/money";
 import { listEntities } from "@/lib/server/entities";
+import { getMadRate } from "@/lib/server/rates";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,26 @@ export default async function LoansPage({ searchParams }: { searchParams: Search
       .catch(() => []),
     listEntities().catch(() => []),
   ]);
-  const totalDebt = loans.filter((loan) => loan.kind !== "OWED_TO_ME").reduce((sum, loan) => sum + loan.remainingBalanceCents, 0);
-  const monthly = loans.reduce((sum, loan) => sum + loan.monthlyPaymentCents, 0);
+  // FX-convert each loan's cents to MAD before summing — different currencies must
+  // not be added together as raw cents. Use the cached/DB-backed rate matrix.
+  // Falls back to 1 if the rate isn't cached so the page still renders during
+  // first-boot / DB-empty states.
+  const debtLoans = loans.filter((loan) => loan.kind !== "OWED_TO_ME");
+  const rateByCurrency = new Map<string, number>();
+  for (const loan of debtLoans) {
+    if (!rateByCurrency.has(loan.currency)) {
+      const rate = await getMadRate(loan.currency).catch(() => 1);
+      rateByCurrency.set(loan.currency, rate);
+    }
+  }
+  const totalDebt = debtLoans.reduce(
+    (sum, loan) => sum + Math.round(loan.remainingBalanceCents * (rateByCurrency.get(loan.currency) ?? 1)),
+    0,
+  );
+  const monthly = loans.reduce(
+    (sum, loan) => sum + Math.round(loan.monthlyPaymentCents * (rateByCurrency.get(loan.currency) ?? 1)),
+    0,
+  );
   const heading = strategy === "avalanche" ? "Avalanche view" : "Snowball view";
   return (
     <>
@@ -56,21 +74,7 @@ export default async function LoansPage({ searchParams }: { searchParams: Search
           </CardHeader>
           <div className="space-y-2">
             {loans.map((loan) => (
-              <div key={loan.id} className="rounded-md bg-surface-inset p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">{loan.lenderName}</p>
-                    <p className="text-xs text-muted-ledger">
-                      {loan.entity?.name ?? "Unassigned"} · {loan.kind} · {Number(loan.interestRate)}% · monthly {formatMoney(loan.monthlyPaymentCents, loan.currency)}
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <p className="text-sm font-semibold">{formatMoney(loan.remainingBalanceCents, loan.currency)}</p>
-                    <RowActions id={loan.id} resource="loans" />
-                  </div>
-                </div>
-                <LoanPaymentForm loanId={loan.id} />
-              </div>
+              <LoanRow key={loan.id} loan={loan} entities={entities} />
             ))}
             {loans.length === 0 ? <p className="text-sm text-muted-ledger">No liabilities tracked yet. Money owed to you belongs in Receivables.</p> : null}
           </div>
